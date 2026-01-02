@@ -2,19 +2,11 @@ import { GalaxyHeader } from "@/components/bitgalaxy/GalaxyHeader";
 import { XPProgressBar } from "@/components/bitgalaxy/XPProgressBar";
 import { getPlayer } from "@/lib/bitgalaxy/getPlayer";
 import { getRankProgress } from "@/lib/bitgalaxy/rankEngine";
+import { getServerUser } from "@/lib/auth-server";
+import { redirect } from "next/navigation";
 
 const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
-
-function getDevUserId() {
-  const devUid = process.env.NEXT_PUBLIC_DEV_UID;
-  if (!devUid) {
-    throw new Error(
-      "BitGalaxy Profile: set NEXT_PUBLIC_DEV_UID in .env.local to a test Firebase UID (or wire real auth).",
-    );
-  }
-  return devUid;
-}
 
 export const metadata = {
   title: "BitGalaxy – Profile",
@@ -22,8 +14,14 @@ export const metadata = {
 
 export default async function BitGalaxyProfilePage() {
   const orgId = DEFAULT_ORG_ID;
-  const userId = getDevUserId();
 
+  // Require an authenticated player
+  const user = await getServerUser();
+  if (!user) {
+    redirect("/login?from=/bitgalaxy/profile");
+  }
+
+  const userId = user.uid;
   const player = await getPlayer(orgId, userId);
   const progress = getRankProgress(player.totalXP);
 
@@ -53,8 +51,8 @@ export default async function BitGalaxyProfilePage() {
                 Your BitGalaxy Signature
               </h2>
               <p className="text-xs text-emerald-100/80">
-                XP, rank, and quest footprint for this world. As you play,
-                this console becomes your permanent record.
+                XP, rank, and quest footprint for this world. As you play, this
+                console becomes your permanent record.
               </p>
             </div>
 
@@ -139,8 +137,8 @@ export default async function BitGalaxyProfilePage() {
 
           <p className="mt-2 text-[11px] text-emerald-200/80">
             Future upgrades will surface streaks, multi-world footprints,
-            seasonal ranks, and Referralink / RewardCircle synergy all from
-            this single console.
+            seasonal ranks, and Referralink / RewardCircle synergy all from this
+            single console.
           </p>
         </div>
       </section>

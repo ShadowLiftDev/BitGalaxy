@@ -2,6 +2,8 @@ import Link from "next/link";
 import { GalaxyHeader } from "@/components/bitgalaxy/GalaxyHeader";
 import { PlayerLookupGate } from "@/components/bitgalaxy/PlayerLookupGate";
 import { getPlayer } from "@/lib/bitgalaxy/getPlayer";
+import { getServerUser } from "@/lib/auth-server";
+import { SignalLockGame } from "@/components/bitgalaxy/SignalLockGame";
 
 const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
@@ -9,21 +11,6 @@ const DEFAULT_ORG_ID =
 type TutorialPageProps = {
   searchParams?: { userId?: string };
 };
-
-/**
- * NOTE:
- * We reuse the same dev UID fallback pattern as /bitgalaxy/page.tsx.
- * In production, you'll swap this to real auth.
- */
-function getDevUserId() {
-  const devUid = process.env.NEXT_PUBLIC_DEV_UID;
-  if (!devUid) {
-    throw new Error(
-      "BitGalaxy Tutorial: set NEXT_PUBLIC_DEV_UID in .env.local to a test Firebase UID (or wire actual auth).",
-    );
-  }
-  return devUid;
-}
 
 export const metadata = {
   title: "BitGalaxy – Signal Lock Tutorial",
@@ -34,14 +21,20 @@ export default async function BitGalaxyTutorialPage({
 }: TutorialPageProps) {
   const orgId = DEFAULT_ORG_ID;
 
-  const queryUserId = searchParams?.userId || null;
-  const devUserId =
-    !queryUserId && process.env.NODE_ENV !== "production"
-      ? getDevUserId()
-      : null;
-  const userId = queryUserId || devUserId;
+  // Priority:
+  // 1) explicit ?userId= in URL (for kiosk / staff)
+  // 2) authenticated user from Firebase
+  // 3) fall back to PlayerLookupGate
+  let userId = searchParams?.userId || null;
 
-  // If we *still* don't have a user, show the same lookup gate
+  if (!userId) {
+    const user = await getServerUser();
+    if (user) {
+      userId = user.uid;
+    }
+  }
+
+  // If we *still* don't have a user, show lookup gate
   if (!userId) {
     return (
       <div className="space-y-6">
@@ -53,7 +46,7 @@ export default async function BitGalaxyTutorialPage({
     );
   }
 
-  // 🔍 Load player to see if Signal Lock is already completed
+  // Load player to see if Signal Lock is already completed
   const player = await getPlayer(orgId, userId);
   const hasCompleted =
     (player as any)?.specialEvents?.signalLockCompleted === true;
@@ -97,7 +90,3 @@ export default async function BitGalaxyTutorialPage({
     </div>
   );
 }
-
-// We import here so the page itself stays a server component,
-// but the game logic runs in a client component.
-import { SignalLockGame } from "@/components/bitgalaxy/SignalLockGame";

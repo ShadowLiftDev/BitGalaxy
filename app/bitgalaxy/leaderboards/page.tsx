@@ -1,19 +1,13 @@
 import Link from "next/link";
 import { GalaxyHeader } from "@/components/bitgalaxy/GalaxyHeader";
-import { getOrgLeaderboard, type LeaderboardScope } from "@/lib/bitgalaxy/leaderboard";
+import {
+  getOrgLeaderboard,
+  type LeaderboardScope,
+} from "@/lib/bitgalaxy/leaderboard";
+import { getServerUser } from "@/lib/auth-server";
 
 const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
-
-function getDevUserId() {
-  const devUid = process.env.NEXT_PUBLIC_DEV_UID;
-  if (!devUid) {
-    throw new Error(
-      "BitGalaxy Leaderboards: set NEXT_PUBLIC_DEV_UID in .env.local to a test Firebase UID (or wire real auth).",
-    );
-  }
-  return devUid;
-}
 
 export const metadata = {
   title: "BitGalaxy – Leaderboards",
@@ -25,13 +19,19 @@ export default async function BitGalaxyLeaderboardsPage({
   searchParams?: { scope?: string };
 }) {
   const orgId = DEFAULT_ORG_ID;
-  const userId = getDevUserId();
+
+  // Optional player highlight if logged in
+  const user = await getServerUser();
+  const userId = user?.uid ?? null;
 
   const scope: LeaderboardScope =
     searchParams?.scope === "weekly" ? "weekly" : "allTime";
 
   const leaderboard = await getOrgLeaderboard(orgId, 50, scope);
-  const yourIndex = leaderboard.findIndex((e) => e.userId === userId);
+  const yourIndex =
+    userId != null
+      ? leaderboard.findIndex((e) => e.userId === userId)
+      : -1;
 
   const isWeekly = scope === "weekly";
   const xpLabel = isWeekly ? "Weekly XP" : "Total XP";
@@ -125,7 +125,8 @@ export default async function BitGalaxyLeaderboardsPage({
                 </thead>
                 <tbody>
                   {leaderboard.map((entry, index) => {
-                    const isYou = entry.userId === userId;
+                    const isYou =
+                      userId != null && entry.userId === userId;
                     const pos = index + 1;
 
                     const rowHighlight =

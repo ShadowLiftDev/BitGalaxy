@@ -1,18 +1,10 @@
 import { GalaxyHeader } from "@/components/bitgalaxy/GalaxyHeader";
 import { CheckinPanel } from "@/components/bitgalaxy/CheckinPanel";
+import { getServerUser } from "@/lib/auth-server";
+import { redirect } from "next/navigation";
 
 const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
-
-function getDevUserId() {
-  const devUid = process.env.NEXT_PUBLIC_DEV_UID;
-  if (!devUid) {
-    throw new Error(
-      "BitGalaxy Check-in: set NEXT_PUBLIC_DEV_UID in .env.local to a test Firebase UID (or wire real auth)."
-    );
-  }
-  return devUid;
-}
 
 export const metadata = {
   title: "BitGalaxy – Check In",
@@ -20,7 +12,14 @@ export const metadata = {
 
 export default async function BitGalaxyCheckinPage() {
   const orgId = DEFAULT_ORG_ID;
-  const userId = getDevUserId();
+
+  // Get the authenticated user (player)
+  const user = await getServerUser();
+  if (!user) {
+    redirect("/login?from=/bitgalaxy/checkin");
+  }
+
+  const userId = user.uid;
 
   return (
     <div className="space-y-6">

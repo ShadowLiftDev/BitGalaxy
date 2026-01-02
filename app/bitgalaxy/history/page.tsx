@@ -1,18 +1,10 @@
 import { GalaxyHeader } from "@/components/bitgalaxy/GalaxyHeader";
 import { getHistory } from "@/lib/bitgalaxy/getHistory";
+import { getServerUser } from "@/lib/auth-server";
+import { redirect } from "next/navigation";
 
 const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
-
-function getDevUserId() {
-  const devUid = process.env.NEXT_PUBLIC_DEV_UID;
-  if (!devUid) {
-    throw new Error(
-      "BitGalaxy History: set NEXT_PUBLIC_DEV_UID in .env.local to a test Firebase UID.",
-    );
-  }
-  return devUid;
-}
 
 export const metadata = {
   title: "BitGalaxy – History",
@@ -43,8 +35,14 @@ function formatEventType(eventType: string): string {
 
 export default async function BitGalaxyHistoryPage() {
   const orgId = DEFAULT_ORG_ID;
-  const userId = getDevUserId();
 
+  // Require an authenticated player
+  const user = await getServerUser();
+  if (!user) {
+    redirect("/login?from=/bitgalaxy/history");
+  }
+
+  const userId = user.uid;
   const entries = await getHistory(orgId, userId, 50);
 
   return (

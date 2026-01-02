@@ -1,18 +1,10 @@
 import { GalaxyHeader } from "@/components/bitgalaxy/GalaxyHeader";
 import { getInventory } from "@/lib/bitgalaxy/getInventory";
+import { getServerUser } from "@/lib/auth-server";
+import { redirect } from "next/navigation";
 
 const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
-
-function getDevUserId() {
-  const devUid = process.env.NEXT_PUBLIC_DEV_UID;
-  if (!devUid) {
-    throw new Error(
-      "BitGalaxy Inventory: set NEXT_PUBLIC_DEV_UID in .env.local to a test Firebase UID (or wire real auth).",
-    );
-  }
-  return devUid;
-}
 
 export const metadata = {
   title: "BitGalaxy – Inventory",
@@ -20,8 +12,14 @@ export const metadata = {
 
 export default async function BitGalaxyInventoryPage() {
   const orgId = DEFAULT_ORG_ID;
-  const userId = getDevUserId();
 
+  // Require an authenticated player
+  const user = await getServerUser();
+  if (!user) {
+    redirect("/login?from=/bitgalaxy/inventory");
+  }
+
+  const userId = user.uid;
   const items = await getInventory(orgId, userId);
 
   return (

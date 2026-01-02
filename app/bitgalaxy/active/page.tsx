@@ -2,19 +2,11 @@ import { GalaxyHeader } from "@/components/bitgalaxy/GalaxyHeader";
 import { ActiveQuestCard } from "@/components/bitgalaxy/ActiveQuestCard";
 import { getActiveQuests } from "@/lib/bitgalaxy/getActiveQuests";
 import { getPlayer } from "@/lib/bitgalaxy/getPlayer";
+import { getServerUser } from "@/lib/auth-server";
+import { redirect } from "next/navigation";
 
 const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
-
-function getDevUserId() {
-  const devUid = process.env.NEXT_PUBLIC_DEV_UID;
-  if (!devUid) {
-    throw new Error(
-      "BitGalaxy Active: set NEXT_PUBLIC_DEV_UID in .env.local to a test Firebase UID."
-    );
-  }
-  return devUid;
-}
 
 export const metadata = {
   title: "BitGalaxy – Active Quests",
@@ -22,7 +14,14 @@ export const metadata = {
 
 export default async function BitGalaxyActivePage() {
   const orgId = DEFAULT_ORG_ID;
-  const userId = getDevUserId();
+
+  // Get the authenticated user (player)
+  const user = await getServerUser();
+  if (!user) {
+    redirect("/login?from=/bitgalaxy/active");
+  }
+
+  const userId = user.uid;
 
   const [player, activeQuests] = await Promise.all([
     getPlayer(orgId, userId),
