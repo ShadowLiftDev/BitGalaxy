@@ -56,15 +56,6 @@ export default function BitGalaxyLayout({ children }: { children: ReactNode }) {
                   <Bell size={16} strokeWidth={2} />
                 </Link>
 
-                {/* Arcade button → games landing page */}
-                <Link
-                  href="/bitgalaxy/games"
-                  className="inline-flex items-center gap-1 rounded-full border border-sky-500/60 bg-slate-950/80 px-2.5 py-1 text-[10px] font-semibold text-sky-100 shadow-[0_0_16px_rgba(56,189,248,0.45)] transition hover:bg-sky-500/10 hover:text-sky-200"
-                >
-                  <Gamepad2 size={14} strokeWidth={2} />
-                  <span>Arcade</span>
-                </Link>
-
                 {/* Text version tag */}
                 <span className="rounded-full border border-slate-700/80 bg-slate-900/80 px-3 py-0.5 font-mono text-[10px] text-slate-300">
                   v2 · MULTI-WORLD
