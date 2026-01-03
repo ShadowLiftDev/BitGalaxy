@@ -45,7 +45,7 @@ export default async function BitGalaxyGamesPage({
           </div>
 
           {/* Player lookup form – should redirect to /bitgalaxy/games?userId=XYZ */}
-          <PlayerLookupGate orgId={orgId} redirectBase="/bitgalaxy/games" />
+          <PlayerLookupGate orgId={orgId} />
 
           <div className="mt-2 text-[11px] text-slate-300">
             <p>
