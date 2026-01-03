@@ -284,14 +284,6 @@ export function PlayerLookupGate({
                 Linked world: <span className="font-mono">orgs/{orgId}</span>
               </p>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setJoinMode(true)}
-              className="mt-2 text-[10px] text-sky-300/85 underline-offset-2 hover:underline"
-            >
-              New here? Create a BitGalaxy profile instead.
-            </button>
           </form>
         )}
 
