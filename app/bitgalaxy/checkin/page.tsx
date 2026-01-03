@@ -1,7 +1,6 @@
+import { redirect } from "next/navigation";
 import { GalaxyHeader } from "@/components/bitgalaxy/GalaxyHeader";
 import { CheckinPanel } from "@/components/bitgalaxy/CheckinPanel";
-import { getServerUser } from "@/lib/auth-server";
-import { redirect } from "next/navigation";
 
 const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
@@ -10,16 +9,21 @@ export const metadata = {
   title: "BitGalaxy – Check In",
 };
 
-export default async function BitGalaxyCheckinPage() {
-  const orgId = DEFAULT_ORG_ID;
+type BitGalaxyCheckinPageProps = {
+  searchParams: Promise<{ userId?: string; orgId?: string }>;
+};
 
-  // Get the authenticated user (player)
-  const user = await getServerUser();
-  if (!user) {
-    redirect("/login?from=/bitgalaxy/checkin");
+export default async function BitGalaxyCheckinPage({
+  searchParams,
+}: BitGalaxyCheckinPageProps) {
+  const resolved = (await searchParams) ?? {};
+  const orgId = resolved.orgId ?? DEFAULT_ORG_ID;
+  const userId = resolved.userId ?? null;
+
+  // No player identity in URL → bounce back to player console (which has the lookup gate)
+  if (!userId) {
+    redirect("/bitgalaxy");
   }
-
-  const userId = user.uid;
 
   return (
     <div className="space-y-6">

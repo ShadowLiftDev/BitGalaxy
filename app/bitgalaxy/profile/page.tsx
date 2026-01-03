@@ -1,9 +1,9 @@
 import { GalaxyHeader } from "@/components/bitgalaxy/GalaxyHeader";
 import { XPProgressBar } from "@/components/bitgalaxy/XPProgressBar";
+import { PlayerLookupGate } from "@/components/bitgalaxy/PlayerLookupGate";
 import { getPlayer } from "@/lib/bitgalaxy/getPlayer";
 import { getRankProgress } from "@/lib/bitgalaxy/rankEngine";
 import { getServerUser } from "@/lib/auth-server";
-import { redirect } from "next/navigation";
 
 const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
@@ -12,16 +12,49 @@ export const metadata = {
   title: "BitGalaxy – Profile",
 };
 
-export default async function BitGalaxyProfilePage() {
+type BitGalaxyProfilePageProps = {
+  searchParams: Promise<{ userId?: string }>;
+};
+
+export default async function BitGalaxyProfilePage({
+  searchParams,
+}: BitGalaxyProfilePageProps) {
   const orgId = DEFAULT_ORG_ID;
 
-  // Require an authenticated player
-  const user = await getServerUser();
-  if (!user) {
-    redirect("/login?from=/bitgalaxy/profile");
+  const resolvedSearch = (await searchParams) ?? {};
+  let userId = resolvedSearch.userId ?? null;
+
+  // Prefer URL, then fall back to authed user
+  if (!userId) {
+    const user = await getServerUser();
+    if (user) {
+      userId = user.uid;
+    }
   }
 
-  const userId = user.uid;
+  // No identity at all → use lookup gate like dashboard
+  if (!userId) {
+    return (
+      <div className="space-y-6">
+        <GalaxyHeader orgName={orgId} />
+        <section className="mt-2 space-y-4">
+          <div className="rounded-2xl border border-emerald-500/40 bg-slate-950/90 p-4 text-[11px] text-emerald-100">
+            <h1 className="text-base font-semibold text-emerald-50">
+              Link a player to view profile
+            </h1>
+            <p className="mt-2 text-xs text-emerald-200/85">
+              Enter the phone or email you use at the venue. Once we locate your
+              BitGalaxy ID, this console will show your rank, XP, and quest
+              footprint for this world.
+            </p>
+          </div>
+
+          <PlayerLookupGate orgId={orgId} />
+        </section>
+      </div>
+    );
+  }
+
   const player = await getPlayer(orgId, userId);
   const progress = getRankProgress(player.totalXP);
 

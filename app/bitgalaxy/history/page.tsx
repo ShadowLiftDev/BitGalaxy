@@ -1,7 +1,7 @@
 import { GalaxyHeader } from "@/components/bitgalaxy/GalaxyHeader";
+import { PlayerLookupGate } from "@/components/bitgalaxy/PlayerLookupGate";
 import { getHistory } from "@/lib/bitgalaxy/getHistory";
 import { getServerUser } from "@/lib/auth-server";
-import { redirect } from "next/navigation";
 
 const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
@@ -33,16 +33,51 @@ function formatEventType(eventType: string): string {
   }
 }
 
-export default async function BitGalaxyHistoryPage() {
+type BitGalaxyHistoryPageProps = {
+  // Match BitGalaxyHomePage pattern
+  searchParams: Promise<{ userId?: string }>;
+};
+
+export default async function BitGalaxyHistoryPage({
+  searchParams,
+}: BitGalaxyHistoryPageProps) {
   const orgId = DEFAULT_ORG_ID;
 
-  // Require an authenticated player
-  const user = await getServerUser();
-  if (!user) {
-    redirect("/login?from=/bitgalaxy/history");
+  const resolvedSearch = (await searchParams) ?? {};
+  let userId = resolvedSearch.userId ?? null;
+
+  // Prefer URL, then fall back to authed user
+  if (!userId) {
+    const user = await getServerUser();
+    if (user) {
+      userId = user.uid;
+    }
   }
 
-  const userId = user.uid;
+  // No user at all → use the same gate experience as dashboard
+  if (!userId) {
+    return (
+      <div className="space-y-6">
+        <GalaxyHeader orgName={orgId} />
+
+        <section className="mt-2 space-y-4">
+          <div className="rounded-2xl border border-sky-500/40 bg-slate-950/90 p-4 text-[11px] text-sky-100">
+            <h1 className="text-base font-semibold text-sky-50">
+              Link your BitGalaxy history
+            </h1>
+            <p className="mt-2 text-xs text-sky-200/85">
+              Enter the email or phone number you use at the venue. Once we find
+              your player ID, we&apos;ll load your full operation timeline for
+              this world.
+            </p>
+          </div>
+
+          <PlayerLookupGate orgId={orgId} />
+        </section>
+      </div>
+    );
+  }
+
   const entries = await getHistory(orgId, userId, 50);
 
   return (

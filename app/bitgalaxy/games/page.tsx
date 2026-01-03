@@ -8,23 +8,33 @@ const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
 
 type BitGalaxyGamesPageProps = {
-  searchParams?: { orgId?: string; userId?: string; guest?: string };
+  // In your setup, searchParams is passed as a Promise
+  searchParams?: Promise<{
+    orgId?: string;
+    userId?: string;
+    guest?: string;
+  }>;
 };
 
 export const metadata = {
   title: "BitGalaxy – Arcade Missions",
 };
 
-export default async function BitGalaxyGamesPage({
-  searchParams,
-}: BitGalaxyGamesPageProps) {
-  const orgId = searchParams?.orgId ?? DEFAULT_ORG_ID;
+export default async function BitGalaxyGamesPage(
+  props: BitGalaxyGamesPageProps,
+) {
+  const resolvedSearch = (props.searchParams
+    ? await props.searchParams
+    : {}) as { orgId?: string; userId?: string; guest?: string };
+
+  const orgId = resolvedSearch.orgId ?? DEFAULT_ORG_ID;
 
   // Guest flag (no XP / no persistence)
-  const isGuest = searchParams?.guest === "1";
+  const isGuest = resolvedSearch.guest === "1";
 
   // Player identity comes ONLY from URL, unless guest
-  const userId = !isGuest && searchParams?.userId ? searchParams.userId : null;
+  const userId =
+    !isGuest && resolvedSearch.userId ? resolvedSearch.userId : null;
 
   // If no player selected and not in guest mode -> show lookup gate
   if (!userId && !isGuest) {
@@ -44,7 +54,7 @@ export default async function BitGalaxyGamesPage({
             </p>
           </div>
 
-          {/* Player lookup form – should redirect to /bitgalaxy/games?userId=XYZ */}
+          {/* Player lookup form – redirects to /bitgalaxy?userId=XYZ */}
           <PlayerLookupGate orgId={orgId} />
 
           <div className="mt-2 text-[11px] text-slate-300">
@@ -134,8 +144,8 @@ export default async function BitGalaxyGamesPage({
       {/* Guest mode banner */}
       {isGuest && (
         <div className="rounded-2xl border border-amber-400/60 bg-amber-500/10 px-4 py-2 text-[11px] text-amber-100">
-          Guest mode · XP and high scores are disabled for this session. Link an
-          account from the BitGalaxy dashboard to start earning.
+          Guest mode · XP and high scores are disabled for this session. Link
+          an account from the BitGalaxy dashboard to start earning.
         </div>
       )}
 
@@ -149,8 +159,8 @@ export default async function BitGalaxyGamesPage({
             Arcade Missions for {playerLabel}
           </h1>
           <p className="mt-1 text-[11px] text-sky-200/85">
-            Complete each mini-game once to bank XP into this world. High scores
-            are logged to your player ID.
+            Complete each mini-game once to bank XP into this world. High
+            scores are logged to your player ID.
           </p>
         </div>
 

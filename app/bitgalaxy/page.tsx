@@ -35,6 +35,29 @@ export default async function BitGalaxyHomePage({
     ? `?userId=${encodeURIComponent(userId)}`
     : "";
 
+    function buildGamePlayHref(
+      questId: string,
+      orgId: string,
+      userId?: string | null,
+    ): string | null {
+      const params = new URLSearchParams();
+      params.set("orgId", orgId);
+      if (userId) params.set("userId", userId);
+
+      // Map quest IDs → actual game routes
+      switch (questId) {
+        case "neon-memory":
+          return `/bitgalaxy/games/neon-memory?${params.toString()}`;
+        case "galaxy-paddle":
+          return `/bitgalaxy/games/galaxy-paddle?${params.toString()}`;
+        case "nebula-break":
+          return `/bitgalaxy/games/nebula-break?${params.toString()}`;
+        default:
+          // Non-arcade or unknown quest → no Play button
+          return null;
+      }
+    }
+
   // 1) No user yet? Show the lookup gate instead of the HUD
   if (!userId) {
     return (
@@ -447,32 +470,26 @@ export default async function BitGalaxyHomePage({
               </p>
             ) : (
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              {questsForDisplay.map((quest) => {
-                const isArcade = quest.type === "arcade";
+  <div className="grid gap-3 sm:grid-cols-2">
+    {questsForDisplay.map((quest) => {
+      const isArcade = quest.type === "arcade";
 
-                const params = new URLSearchParams();
-                params.set("orgId", orgId);
-                if (userId) {
-                  params.set("userId", userId);
-                }
+      const playHref = isArcade
+        ? buildGamePlayHref(quest.id, orgId, userId)
+        : null;
 
-                const playHref = isArcade
-                  ? `/bitgalaxy/games/${encodeURIComponent(quest.id)}?${params.toString()}`
-                  : null;
-
-                return (
-                  <QuestCard
-                    key={quest.id}
-                    quest={quest}
-                    orgId={orgId}
-                    userId={userId}
-                    playHref={playHref} // ⬅ only non-null for arcade quests
-                  />
-                );
-              })}
-            </div>
-          )}
+      return (
+        <QuestCard
+          key={quest.id}
+          quest={quest}
+          orgId={orgId}
+          userId={userId}
+          playHref={playHref}
+        />
+      );
+    })}
+  </div>
+)}
           </div>
         </div>
 

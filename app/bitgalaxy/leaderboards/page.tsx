@@ -13,19 +13,32 @@ export const metadata = {
   title: "BitGalaxy – Leaderboards",
 };
 
+type BitGalaxyLeaderboardsPageProps = {
+  // Match the Promise-based pattern + allow optional userId
+  searchParams?: Promise<{ scope?: string; userId?: string }>;
+};
+
 export default async function BitGalaxyLeaderboardsPage({
   searchParams,
-}: {
-  searchParams?: { scope?: string };
-}) {
+}: BitGalaxyLeaderboardsPageProps) {
   const orgId = DEFAULT_ORG_ID;
 
-  // Optional player highlight if logged in
-  const user = await getServerUser();
-  const userId = user?.uid ?? null;
+  const resolvedSearch = (searchParams
+    ? await searchParams
+    : {}) as { scope?: string; userId?: string };
 
   const scope: LeaderboardScope =
-    searchParams?.scope === "weekly" ? "weekly" : "allTime";
+    resolvedSearch.scope === "weekly" ? "weekly" : "allTime";
+
+  // Prefer userId from URL, fall back to authed user for highlight only
+  let userId: string | null = resolvedSearch.userId ?? null;
+
+  if (!userId) {
+    const user = await getServerUser();
+    if (user) {
+      userId = user.uid;
+    }
+  }
 
   const leaderboard = await getOrgLeaderboard(orgId, 50, scope);
   const yourIndex =

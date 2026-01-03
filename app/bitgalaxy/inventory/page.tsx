@@ -1,7 +1,7 @@
 import { GalaxyHeader } from "@/components/bitgalaxy/GalaxyHeader";
+import { PlayerLookupGate } from "@/components/bitgalaxy/PlayerLookupGate";
 import { getInventory } from "@/lib/bitgalaxy/getInventory";
 import { getServerUser } from "@/lib/auth-server";
-import { redirect } from "next/navigation";
 
 const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
@@ -10,16 +10,49 @@ export const metadata = {
   title: "BitGalaxy – Inventory",
 };
 
-export default async function BitGalaxyInventoryPage() {
+type BitGalaxyInventoryPageProps = {
+  searchParams: Promise<{ userId?: string }>;
+};
+
+export default async function BitGalaxyInventoryPage({
+  searchParams,
+}: BitGalaxyInventoryPageProps) {
   const orgId = DEFAULT_ORG_ID;
 
-  // Require an authenticated player
-  const user = await getServerUser();
-  if (!user) {
-    redirect("/login?from=/bitgalaxy/inventory");
+  const resolvedSearch = (await searchParams) ?? {};
+  let userId = resolvedSearch.userId ?? null;
+
+  // Prefer URL, then fall back to authed user
+  if (!userId) {
+    const user = await getServerUser();
+    if (user) {
+      userId = user.uid;
+    }
   }
 
-  const userId = user.uid;
+  // Still no identity → ask them to link
+  if (!userId) {
+    return (
+      <div className="space-y-6">
+        <GalaxyHeader orgName={orgId} />
+        <section className="mt-2 space-y-4">
+          <div className="rounded-2xl border border-emerald-500/40 bg-slate-950/90 p-4 text-[11px] text-emerald-100">
+            <h1 className="text-base font-semibold text-emerald-50">
+              Link your BitGalaxy inventory
+            </h1>
+            <p className="mt-2 text-xs text-emerald-200/85">
+              Use the phone or email you gave staff at the venue. Once we find
+              your player ID, we&apos;ll load any items you&apos;ve unlocked in
+              this world.
+            </p>
+          </div>
+
+          <PlayerLookupGate orgId={orgId} />
+        </section>
+      </div>
+    );
+  }
+
   const items = await getInventory(orgId, userId);
 
   return (

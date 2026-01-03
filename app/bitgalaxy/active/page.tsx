@@ -1,9 +1,8 @@
+import { redirect } from "next/navigation";
 import { GalaxyHeader } from "@/components/bitgalaxy/GalaxyHeader";
 import { ActiveQuestCard } from "@/components/bitgalaxy/ActiveQuestCard";
 import { getActiveQuests } from "@/lib/bitgalaxy/getActiveQuests";
 import { getPlayer } from "@/lib/bitgalaxy/getPlayer";
-import { getServerUser } from "@/lib/auth-server";
-import { redirect } from "next/navigation";
 
 const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
@@ -12,16 +11,22 @@ export const metadata = {
   title: "BitGalaxy – Active Quests",
 };
 
-export default async function BitGalaxyActivePage() {
-  const orgId = DEFAULT_ORG_ID;
+type BitGalaxyActivePageProps = {
+  // keep Promise<> style to match your BitGalaxy home page
+  searchParams: Promise<{ userId?: string; orgId?: string }>;
+};
 
-  // Get the authenticated user (player)
-  const user = await getServerUser();
-  if (!user) {
-    redirect("/login?from=/bitgalaxy/active");
+export default async function BitGalaxyActivePage({
+  searchParams,
+}: BitGalaxyActivePageProps) {
+  const resolved = (await searchParams) ?? {};
+  const orgId = resolved.orgId ?? DEFAULT_ORG_ID;
+  const userId = resolved.userId ?? null;
+
+  // If we don't have a player ID in the URL, send them back to the player console
+  if (!userId) {
+    redirect("/bitgalaxy");
   }
-
-  const userId = user.uid;
 
   const [player, activeQuests] = await Promise.all([
     getPlayer(orgId, userId),

@@ -9,7 +9,8 @@ const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
 
 type TutorialPageProps = {
-  searchParams?: { userId?: string };
+  // Match the other BitGalaxy pages: Promise-based searchParams
+  searchParams: Promise<{ userId?: string }>;
 };
 
 export const metadata = {
@@ -25,7 +26,8 @@ export default async function BitGalaxyTutorialPage({
   // 1) explicit ?userId= in URL (for kiosk / staff)
   // 2) authenticated user from Firebase
   // 3) fall back to PlayerLookupGate
-  let userId = searchParams?.userId || null;
+  const resolvedSearch = (await searchParams) ?? {};
+  let userId = resolvedSearch.userId ?? null;
 
   if (!userId) {
     const user = await getServerUser();
@@ -61,7 +63,7 @@ export default async function BitGalaxyTutorialPage({
           <span className="font-mono text-sky-100">{userId}</span>
         </span>
         <Link
-          href="/bitgalaxy"
+          href={`/bitgalaxy?userId=${encodeURIComponent(userId)}`}
           className="rounded-full border border-sky-500/40 px-2 py-1 text-[10px] hover:bg-sky-500/10"
         >
           Back to dashboard
@@ -77,7 +79,7 @@ export default async function BitGalaxyTutorialPage({
             <h2 className="text-lg font-semibold text-emerald-100">
               You&apos;ve already cracked this signal.
             </h2>
-            <p className="text-sky-200/85 text-[13px]">
+            <p className="text-[13px] text-sky-200/85">
               This mission is one-time only for this world. Your XP has been
               logged to your BitGalaxy dashboard. Check your rank progression to
               see how far it pushed you.

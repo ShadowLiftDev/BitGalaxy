@@ -1,37 +1,27 @@
 import { GalaxyHeader } from "@/components/bitgalaxy/GalaxyHeader";
 import { PlayerLookupGate } from "@/components/bitgalaxy/PlayerLookupGate";
 import { NebulaBreakGame } from "@/components/bitgalaxy/NebulaBreakGame";
-import { getServerUser } from "@/lib/auth-server";
 
 const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
 
 type NebulaBreakPageProps = {
-  searchParams?: { userId?: string };
+  // Align with the Promise-style used elsewhere
+  searchParams?: Promise<{ orgId?: string; userId?: string }>;
 };
 
 export const metadata = {
   title: "BitGalaxy – Nebula Break Tutorial",
 };
 
-export default async function NebulaBreakPage({
-  searchParams,
-}: NebulaBreakPageProps) {
-  const orgId = DEFAULT_ORG_ID;
+export default async function NebulaBreakPage(
+  props: NebulaBreakPageProps,
+) {
+  const resolvedSearch = (await props.searchParams) ?? {};
+  const orgId = resolvedSearch.orgId ?? DEFAULT_ORG_ID;
+  const userId = resolvedSearch.userId ?? null;
 
-  // Priority:
-  // 1) explicit ?userId= from the URL
-  // 2) authenticated user from Firebase
-  // 3) fall back to PlayerLookupGate if neither
-  let userId = searchParams?.userId || null;
-
-  if (!userId) {
-    const user = await getServerUser();
-    if (user) {
-      userId = user.uid;
-    }
-  }
-
+  // No player ID → use the same phone/email lookup as the dashboard
   if (!userId) {
     return (
       <div className="space-y-6">
@@ -43,6 +33,7 @@ export default async function NebulaBreakPage({
     );
   }
 
+  // Player found → run the game
   return (
     <div className="space-y-6">
       <GalaxyHeader orgName={orgId} />

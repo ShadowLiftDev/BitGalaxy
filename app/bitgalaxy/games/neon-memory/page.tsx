@@ -1,37 +1,27 @@
 import { GalaxyHeader } from "@/components/bitgalaxy/GalaxyHeader";
 import { PlayerLookupGate } from "@/components/bitgalaxy/PlayerLookupGate";
 import { NeonMemoryGame } from "@/components/bitgalaxy/NeonMemoryGame";
-import { getServerUser } from "@/lib/auth-server";
 
 const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
 
 type NeonMemoryPageProps = {
-  searchParams?: { userId?: string };
+  // Same Promise-style searchParams for consistency
+  searchParams?: Promise<{ orgId?: string; userId?: string }>;
 };
 
 export const metadata = {
   title: "BitGalaxy – Neon Memory Tutorial",
 };
 
-export default async function NeonMemoryPage({
-  searchParams,
-}: NeonMemoryPageProps) {
-  const orgId = DEFAULT_ORG_ID;
+export default async function NeonMemoryPage(
+  props: NeonMemoryPageProps,
+) {
+  const resolvedSearch = (await props.searchParams) ?? {};
+  const orgId = resolvedSearch.orgId ?? DEFAULT_ORG_ID;
+  const userId = resolvedSearch.userId ?? null;
 
-  // Priority:
-  // 1) explicit ?userId= from the URL
-  // 2) authenticated user from Firebase
-  // 3) fall back to PlayerLookupGate if neither
-  let userId = searchParams?.userId || null;
-
-  if (!userId) {
-    const user = await getServerUser();
-    if (user) {
-      userId = user.uid;
-    }
-  }
-
+  // No player ID → route through the phone/email gate instead of auth
   if (!userId) {
     return (
       <div className="space-y-6">
@@ -43,6 +33,7 @@ export default async function NeonMemoryPage({
     );
   }
 
+  // Player present → launch Neon Memory
   return (
     <div className="space-y-6">
       <GalaxyHeader orgName={orgId} />
