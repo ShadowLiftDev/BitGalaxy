@@ -17,8 +17,13 @@ const SESSION_COOKIE_NAME = "session";
 
 /**
  * Dev helper: use NEXT_PUBLIC_DEV_UID if set.
+ * ⬅️ IMPORTANT: only active in NON-PRODUCTION
  */
 async function getDevUser(): Promise<AuthUser | null> {
+  if (process.env.NODE_ENV === "production") {
+    return null;
+  }
+
   const devUid = process.env.NEXT_PUBLIC_DEV_UID;
   if (!devUid) return null;
 
@@ -48,7 +53,6 @@ async function getTokenFromRequest(req: NextRequest): Promise<string | null> {
 
 /**
  * Server-component context: pull token from headers() + cookies()
- * NOTE: headers() and cookies() are async-typed in your setup, so we await them.
  */
 async function getTokenFromServerContext(): Promise<string | null> {
   try {
@@ -72,7 +76,7 @@ async function getTokenFromServerContext(): Promise<string | null> {
 export async function getServerUser(
   req?: NextRequest,
 ): Promise<AuthUser | null> {
-  // Dev override first
+  // 🧪 Dev override FIRST, but ONLY in non-production
   const devUser = await getDevUser();
   if (devUser) return devUser;
 
@@ -81,7 +85,7 @@ export async function getServerUser(
   if (req) {
     token = await getTokenFromRequest(req);
   } else {
-    token = await getTokenFromServerContext(); // ⬅ note the await
+    token = await getTokenFromServerContext();
   }
 
   if (!token) return null;
