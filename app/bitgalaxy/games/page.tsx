@@ -1,39 +1,32 @@
 import Link from "next/link";
 import { GalaxyHeader } from "@/components/bitgalaxy/GalaxyHeader";
+import { PlayerLookupGate } from "@/components/bitgalaxy/PlayerLookupGate";
 import { getPlayer } from "@/lib/bitgalaxy/getPlayer";
 import { getQuests } from "@/lib/bitgalaxy/getQuests";
-import { getServerUser } from "@/lib/auth-server";
 
 const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
 
 type BitGalaxyGamesPageProps = {
-  // keep userId for dev override only; guest flag for guest mode
-  searchParams?: Promise<{ orgId?: string; userId?: string; guest?: string }>;
+  searchParams?: { orgId?: string; userId?: string; guest?: string };
 };
 
 export const metadata = {
   title: "BitGalaxy – Arcade Missions",
 };
 
-export default async function BitGalaxyGamesPage(
-  props: BitGalaxyGamesPageProps,
-) {
-  const resolvedSearch = (await props.searchParams) ?? {};
-  const orgId = resolvedSearch.orgId ?? DEFAULT_ORG_ID;
+export default async function BitGalaxyGamesPage({
+  searchParams,
+}: BitGalaxyGamesPageProps) {
+  const orgId = searchParams?.orgId ?? DEFAULT_ORG_ID;
 
-  const isGuest = resolvedSearch.guest === "1";
+  // Guest flag (no XP / no persistence)
+  const isGuest = searchParams?.guest === "1";
 
-  // 🔐 Primary identity: Firebase session (phone/email) via cookie/headers
-  const authed = await getServerUser();
-  let userId = authed?.uid ?? null;
+  // Player identity comes ONLY from URL, unless guest
+  const userId = !isGuest && searchParams?.userId ? searchParams.userId : null;
 
-  // Dev override only (same pattern as quests pages)
-  if (process.env.NODE_ENV !== "production" && resolvedSearch.userId) {
-    userId = resolvedSearch.userId;
-  }
-
-  // If no user and not explicitly in guest mode → gate with sign-in + guest CTA
+  // If no player selected and not in guest mode -> show lookup gate
   if (!userId && !isGuest) {
     return (
       <div className="space-y-6">
@@ -45,36 +38,37 @@ export default async function BitGalaxyGamesPage(
               Link your BitGalaxy player profile
             </h1>
             <p className="mt-2 text-xs text-amber-200/85">
-              Sign in with the same phone/email you use at The Neon Lunchbox to
-              start earning XP, tracking ranks, and logging your arcade records.
+              Enter the phone or email you use at The Neon Lunchbox to locate
+              your BitGalaxy player profile. Once selected, XP, ranks, and
+              arcade records will be tied to that ID.
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-2 rounded-full border border-amber-400/50 bg-amber-500/10 px-4 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-500/15"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
-                Sign in
-              </Link>
-              <Link
-                href="/bitgalaxy/games?guest=1"
-                className="inline-flex items-center gap-2 rounded-full border border-slate-600/70 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 hover:border-sky-400/80 hover:text-sky-100"
-              >
-                Continue as guest (no XP)
-              </Link>
-            </div>
+          </div>
+
+          {/* Player lookup form – should redirect to /bitgalaxy/games?userId=XYZ */}
+          <PlayerLookupGate orgId={orgId} redirectBase="/bitgalaxy/games" />
+
+          <div className="mt-2 text-[11px] text-slate-300">
+            <p>
+              Or, continue in guest mode if you just want to try the games
+              without logging XP:
+            </p>
+            <Link
+              href="/bitgalaxy/games?guest=1"
+              className="mt-2 inline-flex items-center gap-2 rounded-full border border-slate-600/70 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 hover:border-sky-400/80 hover:text-sky-100"
+            >
+              Continue as guest (no XP)
+            </Link>
           </div>
         </section>
       </div>
     );
   }
 
-  // 🎮 From here on, we either have a real player OR guest mode
+  // From here on: either a real player (userId) OR guest mode
   let player: any = null;
   let quests: any[] = [];
 
   if (!isGuest && userId) {
-    // Only hit Firestore when we have an actual player
     [player, quests] = await Promise.all([
       getPlayer(orgId, userId),
       getQuests(orgId, { activeOnly: true }),
@@ -130,6 +124,9 @@ export default async function BitGalaxyGamesPage(
     userId ||
     "Guest player";
 
+  // At this point, if not guest, userId is guaranteed non-null
+  const playerUserId = (userId ?? "") as string;
+
   return (
     <div className="space-y-6">
       <GalaxyHeader orgName={orgId} />
@@ -162,7 +159,7 @@ export default async function BitGalaxyGamesPage(
             href={
               isGuest
                 ? "/bitgalaxy"
-                : `/bitgalaxy?userId=${encodeURIComponent(userId as string)}`
+                : `/bitgalaxy?userId=${encodeURIComponent(playerUserId)}`
             }
             className="inline-flex items-center gap-2 rounded-full border border-sky-500/50 bg-slate-950/80 px-3 py-1.5 text-[10px] font-semibold text-sky-100 shadow-[0_0_18px_rgba(56,189,248,0.5)] transition hover:bg-sky-500/10"
           >
@@ -220,7 +217,8 @@ export default async function BitGalaxyGamesPage(
                 <p className="text-[10px] uppercase tracking-[0.24em] text-sky-300/90">
                   Best run (logged)
                 </p>
-                {!isGuest && (neonMemoryStats.bestTimeMs || neonMemoryStats.bestMoves) ? (
+                {!isGuest &&
+                (neonMemoryStats.bestTimeMs || neonMemoryStats.bestMoves) ? (
                   <div className="mt-1 space-y-1">
                     <p className="font-mono text-[11px] text-sky-100">
                       Time: {formatMsToSeconds(neonMemoryStats.bestTimeMs)}
@@ -245,7 +243,7 @@ export default async function BitGalaxyGamesPage(
                   isGuest
                     ? "/bitgalaxy/games/neon-memory?guest=1"
                     : `/bitgalaxy/games/neon-memory?userId=${encodeURIComponent(
-                        userId as string,
+                        playerUserId,
                       )}`
                 }
                 className="inline-flex items-center justify-center rounded-full bg-sky-500 px-4 py-2 text-[11px] font-semibold text-slate-950 shadow-[0_0_24px_rgba(56,189,248,0.7)] transition hover:bg-sky-400"
@@ -336,7 +334,7 @@ export default async function BitGalaxyGamesPage(
                   isGuest
                     ? "/bitgalaxy/games/galaxy-paddle?guest=1"
                     : `/bitgalaxy/games/galaxy-paddle?userId=${encodeURIComponent(
-                        userId as string,
+                        playerUserId,
                       )}`
                 }
                 className="inline-flex items-center justify-center rounded-full bg-indigo-500 px-4 py-2 text-[11px] font-semibold text-slate-950 shadow-[0_0_24px_rgba(129,140,248,0.7)] transition hover:bg-indigo-400"
@@ -424,7 +422,7 @@ export default async function BitGalaxyGamesPage(
                   isGuest
                     ? "/bitgalaxy/games/nebula-break?guest=1"
                     : `/bitgalaxy/games/nebula-break?userId=${encodeURIComponent(
-                        userId as string,
+                        playerUserId,
                       )}`
                 }
                 className="inline-flex items-center justify-center rounded-full bg-amber-500 px-4 py-2 text-[11px] font-semibold text-slate-950 shadow-[0_0_24px_rgba(245,158,11,0.7)] transition hover:bg-amber-400"
