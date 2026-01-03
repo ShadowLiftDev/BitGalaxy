@@ -446,11 +446,16 @@ export default async function BitGalaxyHomePage({
                 as contracts you can accept.
               </p>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {questsForDisplay.map((quest) => (
-                  <QuestCard key={quest.id} quest={quest} orgId={orgId} />
-                ))}
-              </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {questsForDisplay.map((quest) => (
+              <QuestCard
+                key={quest.id}
+                quest={quest}
+                orgId={orgId}
+                userId={userId}          // ⬅ pass the current player
+              />
+            ))}
+          </div>
             )}
           </div>
         </div>

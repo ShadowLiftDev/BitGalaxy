@@ -7,9 +7,12 @@ type QuestCardProps = {
   quest: BitGalaxyQuest;
   orgId: string;
 
-  // ✅ new
+  // existing props
   variant?: "default" | "carousel";
   status?: QuestStatusBadge;
+
+  // NEW: for player-side routing so the ID persists in the URL
+  userId?: string | null;
 };
 
 const typeLabels: Record<string, string> = {
@@ -37,11 +40,15 @@ export function QuestCard({
   orgId,
   variant = "default",
   status = "available",
+  userId, // NEW
 }: QuestCardProps) {
   const typeLabel = typeLabels[quest.type] ?? "Quest";
 
   const search = new URLSearchParams();
   search.set("orgId", orgId);
+  if (userId) {
+    search.set("userId", userId);
+  }
 
   const questUrl = `/bitgalaxy/quests/${quest.id}?${search.toString()}`;
 
