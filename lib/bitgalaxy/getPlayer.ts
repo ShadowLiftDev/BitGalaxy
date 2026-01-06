@@ -1,18 +1,16 @@
 import { adminDb } from "@/lib/firebase-admin";
 import { getLevelForXP, getRankForXP } from "./rankEngine";
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
 import { getISOWeekKey } from "@/lib/weekKey";
 
 export interface PlayerInventoryItem {
   itemId: string;
   quantity: number;
-
-  // Optional UI/meta fields (safe even if not present in Firestore yet)
   label?: string;
   description?: string;
   source?: string;
-  createdAt?: Timestamp; // store as ms epoch (recommended)
-};
+  createdAt?: FirebaseFirestore.Timestamp | null;
+}
 
 export interface BitGalaxyPlayer {
   userId: string;
@@ -29,6 +27,7 @@ export interface BitGalaxyPlayer {
   activeQuestIds: string[];
   completedQuestIds: string[];
   inventory: PlayerInventoryItem[];
+
   lastCheckinAt: FirebaseFirestore.Timestamp | null;
   createdAt: FirebaseFirestore.Timestamp | null;
   updatedAt: FirebaseFirestore.Timestamp | null;
@@ -36,10 +35,38 @@ export interface BitGalaxyPlayer {
 
 const PLAYERS_SUBCOLLECTION = "bitgalaxyPlayers";
 
-export async function getPlayer(
-  orgId: string,
-  userId: string,
-): Promise<BitGalaxyPlayer> {
+function normalizePlayer(orgId: string, userId: string, data: any): BitGalaxyPlayer {
+  const totalXP = Number(data?.totalXP || 0);
+
+  const rank = data?.rank ?? getRankForXP(totalXP);
+  const level = Number.isFinite(data?.level) ? Number(data.level) : getLevelForXP(totalXP);
+
+  const currentWeekKey = getISOWeekKey(new Date());
+
+  return {
+    ...data,
+    userId: data?.userId ?? userId,
+    orgId,
+
+    totalXP,
+    rank,
+    level,
+
+    weeklyXP: Number(data?.weeklyXP || 0),
+    weeklyWeekKey: String(data?.weeklyWeekKey || currentWeekKey),
+
+    currentProgramId: (data?.currentProgramId ?? null) as string | null,
+    activeQuestIds: Array.isArray(data?.activeQuestIds) ? data.activeQuestIds : [],
+    completedQuestIds: Array.isArray(data?.completedQuestIds) ? data.completedQuestIds : [],
+    inventory: Array.isArray(data?.inventory) ? data.inventory : [],
+
+    lastCheckinAt: (data?.lastCheckinAt ?? null) as FirebaseFirestore.Timestamp | null,
+    createdAt: (data?.createdAt ?? null) as FirebaseFirestore.Timestamp | null,
+    updatedAt: (data?.updatedAt ?? null) as FirebaseFirestore.Timestamp | null,
+  };
+}
+
+export async function getPlayer(orgId: string, userId: string): Promise<BitGalaxyPlayer> {
   if (!orgId) throw new Error("getPlayer: orgId is required");
   if (!userId) throw new Error("getPlayer: userId is required");
 
@@ -52,63 +79,40 @@ export async function getPlayer(
   const snap = await playerRef.get();
 
   if (snap.exists) {
-    const data = snap.data() as any;
-
-    const totalXP = Number(data.totalXP || 0);
-    const rank = data.rank ?? getRankForXP(totalXP);
-    const level = Number.isFinite(data.level)
-      ? Number(data.level)
-      : getLevelForXP(totalXP);
-
-    const currentWeekKey = getISOWeekKey(new Date());
-
-    return {
-      ...data,
-      userId: data.userId ?? userId,
-      orgId,
-      totalXP,
-      rank,
-      level,
-      weeklyXP: Number(data.weeklyXP || 0),
-      // ✅ never empty string (helps weekly reset logic later)
-      weeklyWeekKey: String(data.weeklyWeekKey || currentWeekKey),
-    } as BitGalaxyPlayer;
+    return normalizePlayer(orgId, userId, snap.data());
   }
 
   // Create default player if missing (race-safe)
-  return await adminDb.runTransaction(async (tx) => {
+  await adminDb.runTransaction(async (tx) => {
     const freshSnap = await tx.get(playerRef);
-    if (freshSnap.exists) return freshSnap.data() as BitGalaxyPlayer;
+    if (freshSnap.exists) return;
 
     const now = FieldValue.serverTimestamp();
     const totalXP = 0;
-    const rank = getRankForXP(totalXP);
-    const level = getLevelForXP(totalXP);
-    const weekKey = getISOWeekKey(new Date());
 
-    const newPlayer: BitGalaxyPlayer = {
+    const newPlayerBase = {
       userId,
       orgId,
       totalXP,
-      rank,
-      level,
+      rank: getRankForXP(totalXP),
+      level: getLevelForXP(totalXP),
       weeklyXP: 0,
-      weeklyWeekKey: weekKey,
+      weeklyWeekKey: getISOWeekKey(new Date()),
       currentProgramId: null,
       activeQuestIds: [],
       completedQuestIds: [],
       inventory: [],
       lastCheckinAt: null,
-      createdAt: null,
-      updatedAt: null,
     };
 
     tx.set(
       playerRef,
-      { ...newPlayer, createdAt: now, updatedAt: now },
+      { ...newPlayerBase, createdAt: now, updatedAt: now },
       { merge: true },
     );
-
-    return newPlayer;
   });
+
+  // ✅ Read back so createdAt/updatedAt are real Timestamps
+  const createdSnap = await playerRef.get();
+  return normalizePlayer(orgId, userId, createdSnap.data() ?? {});
 }

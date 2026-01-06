@@ -6,34 +6,29 @@ const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
 
 type NebulaBreakPageProps = {
-  // Align with the Promise-style used elsewhere
-  searchParams?: Promise<{ orgId?: string; userId?: string }>;
+  searchParams?: Promise<{ orgId?: string; userId?: string; guest?: string }>;
 };
 
 export const metadata = {
-  title: "BitGalaxy – Nebula Break Tutorial",
+  title: "BitGalaxy – Nebula Break",
 };
 
-export default async function NebulaBreakPage(
-  props: NebulaBreakPageProps,
-) {
-  const resolvedSearch = (await props.searchParams) ?? {};
-  const orgId = resolvedSearch.orgId ?? DEFAULT_ORG_ID;
+export default async function NebulaBreakPage(props: NebulaBreakPageProps) {
+  const resolvedSearch = props.searchParams ? await props.searchParams : {};
+  const orgId = (resolvedSearch.orgId ?? DEFAULT_ORG_ID).trim();
   const userId = resolvedSearch.userId ?? null;
 
-  // No player ID → use the same phone/email lookup as the dashboard
   if (!userId) {
     return (
       <div className="space-y-6">
         <GalaxyHeader orgName={orgId} />
         <section className="mt-2">
-          <PlayerLookupGate orgId={orgId} />
+          <PlayerLookupGate orgId={orgId} redirectBase="/bitgalaxy/games/nebula-break" />
         </section>
       </div>
     );
   }
 
-  // Player found → run the game
   return (
     <div className="space-y-6">
       <GalaxyHeader orgName={orgId} />

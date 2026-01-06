@@ -11,12 +11,25 @@ type Body = {
   phone?: string;
 };
 
+function normalizeEmail(email?: string) {
+  const e = (email ?? "").trim().toLowerCase();
+  return e || null;
+}
+
+function normalizePhone(phone?: string) {
+  const digits = (phone ?? "").replace(/[^\d]/g, "");
+  if (!digits) return null;
+  // last 10 digits covers (727) XXX-XXXX inputs reliably
+  return digits.length > 10 ? digits.slice(-10) : digits;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as Partial<Body>;
     const orgId = body.orgId?.trim();
-    const email = body.email?.trim().toLowerCase();
-    const phone = body.phone?.trim();
+    const email = normalizeEmail(body.email);
+    const phoneDigits = normalizePhone(body.phone);
+    const phoneRaw = (body.phone ?? "").trim();
 
     if (!orgId) {
       return NextResponse.json(
@@ -25,7 +38,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!email && !phone) {
+    if (!email && !phoneRaw) {
       return NextResponse.json(
         {
           success: false,
@@ -40,69 +53,44 @@ export async function POST(req: NextRequest) {
       .doc(orgId)
       .collection("bitgalaxyPlayers");
 
-    let userId: string | null = null;
-
-    // 1) Try email match if provided
+    // 1) Email lookup (your stored doc uses lowercase email already)
     if (email) {
-      const emailSnap = await playersRef
-        .where("email", "==", email)
-        .limit(1)
-        .get();
-
-      if (!emailSnap.empty) {
-        userId = emailSnap.docs[0].id;
+      const snap = await playersRef.where("email", "==", email).limit(1).get();
+      if (!snap.empty) {
+        return NextResponse.json({ success: true, userId: snap.docs[0].id });
       }
     }
 
-    // 2) If still not found, try phone match if provided
-    if (!userId && phone) {
-      const raw = phone;
-      const normalized = phone.replace(/\D/g, "");
+    // 2) Phone lookup (try common schemas)
+    if (phoneRaw) {
+      const candidates: Array<{ field: string; value: string | null }> = [
+        { field: "phone", value: phoneDigits },
+        { field: "phone", value: phoneRaw },
+        { field: "phoneNormalized", value: phoneDigits },
+        { field: "phoneDigits", value: phoneDigits },
+      ];
 
-      // TODO: adjust "phone" to match your schema (e.g. "phoneDigits" or "phoneE164")
-      const phoneField = "phone";
-
-      // Try normalized first
-      let phoneSnap = await playersRef
-        .where(phoneField, "==", normalized)
-        .limit(1)
-        .get();
-
-      // If nothing, try raw
-      if (phoneSnap.empty) {
-        phoneSnap = await playersRef
-          .where(phoneField, "==", raw)
-          .limit(1)
-          .get();
-      }
-
-      if (!phoneSnap.empty) {
-        userId = phoneSnap.docs[0].id;
+      for (const c of candidates) {
+        if (!c.value) continue;
+        const snap = await playersRef.where(c.field, "==", c.value).limit(1).get();
+        if (!snap.empty) {
+          return NextResponse.json({ success: true, userId: snap.docs[0].id });
+        }
       }
     }
 
-    if (!userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "No BitGalaxy player found with that email/phone in this world. Ask staff to confirm which contact info is on file.",
-        },
-        { status: 404 },
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      userId,
-    });
-  } catch (err: any) {
-    console.error("BitGalaxy lookup-player error:", err);
     return NextResponse.json(
       {
         success: false,
-        error: "Unexpected error looking up player.",
+        error:
+          "No BitGalaxy player found with that email/phone in this world. Ask staff to confirm which contact info is on file.",
       },
+      { status: 404 },
+    );
+  } catch (err: any) {
+    console.error("BitGalaxy lookup-player error:", err);
+    return NextResponse.json(
+      { success: false, error: "Unexpected error looking up player." },
       { status: 500 },
     );
   }

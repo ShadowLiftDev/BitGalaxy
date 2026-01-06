@@ -12,51 +12,47 @@ const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
 
 type BitGalaxyHomePageProps = {
-  // In your current setup, searchParams is passed as a Promise
-  searchParams: Promise<{ userId?: string }>;
+  searchParams?: Promise<{ userId?: string; orgId?: string }>;
 };
 
 export const metadata = {
   title: "BitGalaxy – Player Dashboard",
 };
 
-export default async function BitGalaxyHomePage({
-  searchParams,
-}: BitGalaxyHomePageProps) {
-  const orgId = DEFAULT_ORG_ID;
+function buildGamePlayHref(
+  questId: string,
+  orgId: string,
+  userId?: string | null,
+): string | null {
+  const params = new URLSearchParams();
+  params.set("orgId", orgId);
+  if (userId) params.set("userId", userId);
 
-  // Unwrap the searchParams Promise safely
-  const resolvedSearch = (await searchParams) ?? {};
-  const queryUserId = resolvedSearch.userId ?? null;
+  switch (questId) {
+    case "neon-memory":
+      return `/bitgalaxy/games/neon-memory?${params.toString()}`;
+    case "galaxy-paddle":
+      return `/bitgalaxy/games/galaxy-paddle?${params.toString()}`;
+    case "nebula-break":
+      return `/bitgalaxy/games/nebula-break?${params.toString()}`;
+    default:
+      return null;
+  }
+}
 
-  // 👉 Entry: user must be looked up first
-  const userId = queryUserId || null;
-  const userQuery = userId
-    ? `?userId=${encodeURIComponent(userId)}`
-    : "";
+export default async function BitGalaxyHomePage({ searchParams }: BitGalaxyHomePageProps) {
+  const resolved = (searchParams ? await searchParams : {}) as {
+    orgId?: string;
+    userId?: string;
+  };
 
-    function buildGamePlayHref(
-      questId: string,
-      orgId: string,
-      userId?: string | null,
-    ): string | null {
-      const params = new URLSearchParams();
-      params.set("orgId", orgId);
-      if (userId) params.set("userId", userId);
+  const orgId = (resolved.orgId ?? DEFAULT_ORG_ID).trim();
+  const userId = resolved.userId ?? null;
 
-      // Map quest IDs → actual game routes
-      switch (questId) {
-        case "neon-memory":
-          return `/bitgalaxy/games/neon-memory?${params.toString()}`;
-        case "galaxy-paddle":
-          return `/bitgalaxy/games/galaxy-paddle?${params.toString()}`;
-        case "nebula-break":
-          return `/bitgalaxy/games/nebula-break?${params.toString()}`;
-        default:
-          // Non-arcade or unknown quest → no Play button
-          return null;
-      }
-    }
+  const userQuery =
+    userId
+      ? `?${new URLSearchParams({ orgId, userId }).toString()}`
+      : "";
 
   // 1) No user yet? Show the lookup gate instead of the HUD
   if (!userId) {
@@ -65,11 +61,12 @@ export default async function BitGalaxyHomePage({
         <GalaxyHeader orgName={orgId} />
 
         <section className="mt-2">
-          {/* For the main console, redirecting to /bitgalaxy is fine */}
-          <PlayerLookupGate orgId={orgId} />
+          <PlayerLookupGate
+            orgId={orgId}
+            joinRedirectUrl={`https://neon-hq.vercel.app/orgs/${encodeURIComponent(orgId)}/landing`}
+          />
         </section>
 
-        {/* Owner CTA */}
         <p className="mt-6 text-center text-[11px] text-slate-500">
           Are you the owner of this world?{" "}
           <a
@@ -85,16 +82,30 @@ export default async function BitGalaxyHomePage({
   }
 
   // 2) We have a player: load player + quests
-  const [player, quests] = await Promise.all([
-    getPlayer(orgId, userId),
-    getQuests(orgId, { activeOnly: true }),
-  ]);
+const [player, quests] = await Promise.all([
+  getPlayer(orgId, userId),
+  getQuests(orgId, { activeOnly: true }),
+]);
 
-  // 🔒 Normalize XP so we never explode on undefined/null
+if (!player) {
+  return (
+    <div className="space-y-6">
+      <GalaxyHeader orgName={orgId} />
+      <section className="mt-2">
+        <PlayerLookupGate
+          orgId={orgId}
+          joinRedirectUrl={`https://neon-hq.vercel.app/orgs/${encodeURIComponent(orgId)}/landing`}
+        />
+      </section>
+      <p className="text-center text-[11px] text-rose-300">
+        We couldn’t load that player ID. Please look up your profile again.
+      </p>
+    </div>
+  );
+}
+
   const totalXP =
-    typeof (player as any)?.totalXP === "number"
-      ? (player as any).totalXP
-      : 0;
+    typeof (player as any)?.totalXP === "number" ? (player as any).totalXP : 0;
 
   const progress = getRankProgress(totalXP);
   const activeCount = player.activeQuestIds?.length ?? 0;
@@ -103,7 +114,6 @@ export default async function BitGalaxyHomePage({
   const playerLabel =
     (player as any)?.displayName || (player as any)?.name || userId;
 
-  // 🌌 Special events (Signal Lock flag, etc.)
   const specialEvents =
     ((player as any)?.specialEvents || {}) as {
       signalLockCompleted?: boolean;
@@ -112,13 +122,11 @@ export default async function BitGalaxyHomePage({
 
   const hasSignalLock = !!specialEvents.signalLockCompleted;
 
-  // Small guard for "XP to next rank" if this is top rank
   const xpToNextRank =
     Number.isFinite(progress.tierMaxXP) && progress.tierMaxXP > 0
       ? Math.max(progress.tierMaxXP - progress.currentXP, 0)
       : 0;
 
-  // 🎯 Hide Signal Lock quest once the tutorial is complete
   const questsForDisplay = hasSignalLock
     ? quests.filter((q) => q.id !== "signal-lock")
     : quests;
@@ -127,7 +135,6 @@ export default async function BitGalaxyHomePage({
     <div className="space-y-6">
       <GalaxyHeader orgName={orgId} />
 
-      {/* TOP STRIP – current player + quick switch */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-[11px] text-sky-300/80">
         <div className="inline-flex items-center gap-2 rounded-full border border-sky-700/70 bg-slate-950/80 px-3 py-1">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.9)]" />
@@ -139,9 +146,8 @@ export default async function BitGalaxyHomePage({
           </span>
         </div>
 
-        {/* Switch player = intentionally NO userQuery, so it goes back to lookup */}
         <Link
-          href="/bitgalaxy"
+          href={`/bitgalaxy?${new URLSearchParams({ orgId }).toString()}`}
           className="inline-flex items-center gap-1 rounded-full border border-sky-500/40 px-3 py-1 text-[10px] text-sky-200 hover:bg-sky-500/10"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
@@ -317,16 +323,37 @@ export default async function BitGalaxyHomePage({
                   />
                 </div>
 
-                {/* ⭐ Arcade / View Games button (centered) */}
-                <div className="mt-3 flex justify-center">
-                  <Link
-                    href={`/bitgalaxy/games${userQuery}`}
-                    className="inline-flex items-center gap-2 rounded-full bg-sky-500 px-5 py-2 text-[11px] font-semibold text-slate-950 shadow-[0_0_24px_rgba(56,189,248,0.7)] transition hover:bg-sky-400"
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.9)]" />
-                    Open Arcade / View Games
-                  </Link>
-                </div>
+      {/* ⭐ Arcade / View Games button (centered) */}
+      <div className="mt-3 flex justify-center">
+        <Link
+          href={`/bitgalaxy/games${userQuery}`}
+          className="inline-flex items-center gap-2 rounded-full bg-sky-500 px-5 py-2 text-[11px] font-semibold text-slate-950 shadow-[0_0_24px_rgba(56,189,248,0.7)] transition hover:bg-sky-400"
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.9)]" />
+          Open Arcade / View Games
+        </Link>
+      </div>
+
+      {/* and ALL other links already using userQuery now include orgId too */}
+      {/* QuestCard map remains the same */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {questsForDisplay.map((quest) => {
+          const isArcade = quest.type === "arcade";
+          const playHref = isArcade
+            ? buildGamePlayHref(quest.id, orgId, userId)
+            : null;
+
+          return (
+            <QuestCard
+              key={quest.id}
+              quest={quest}
+              orgId={orgId}
+              userId={userId}
+              playHref={playHref}
+            />
+          );
+        })}
+      </div>
               </div>
             </div>
           </div>
