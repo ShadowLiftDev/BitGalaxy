@@ -42,8 +42,8 @@ export default async function BitGalaxyLayout({
     console.error("BitGalaxyLayout: error loading org name", err);
   }
 
-  const basePath = `/hq/${encodeURIComponent(decodedOrgId)}/bitgalaxy`;
-  const neonHQPath = `/hq/${encodeURIComponent(decodedOrgId)}`;
+  const basePath = `/hq/neon-lunchbox/bitgalaxy`;
+  const neonHQPath = `/hq/neon-lunchbox`;
 
   return (
     <div className="min-h-screen flex items-start justify-center px-3 py-6 sm:px-6 sm:py-10">
@@ -62,7 +62,7 @@ export default async function BitGalaxyLayout({
                   XP, quests, and rewards engine for{" "}
                   <span className="font-semibold text-sky-100">{orgName}</span>
                   <span className="ml-1 font-mono text-sky-400/80">
-                    (orgs/{decodedOrgId})
+                    (orgs/neon-lunchbox)
                   </span>
                   .
                 </span>
@@ -94,7 +94,7 @@ export default async function BitGalaxyLayout({
           <div className="space-y-0.5">
             <div className="font-semibold text-sky-100">{orgName}</div>
             <div className="font-mono text-[10px] text-sky-400/80">
-              orgs/{decodedOrgId}/bitgalaxy
+              orgs/neon-lunchbox/bitgalaxy
             </div>
           </div>
 

@@ -151,7 +151,7 @@ export default async function BitGalaxyDashboardPage({
               Config source
             </div>
             <div className="mt-1 text-[11px] font-mono text-sky-50">
-              orgs/{decodedOrgId}/bitgalaxyConfig/config
+              orgs/neon-lunchbox/bitgalaxyConfig/config
             </div>
             <p className="mt-1 text-[11px] text-sky-300/80">
               Manage details in the BitGalaxy Settings tab.

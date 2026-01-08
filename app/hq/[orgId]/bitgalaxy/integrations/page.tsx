@@ -139,7 +139,7 @@ export default async function BitGalaxyIntegrationsPage({
             This screen is the wiring diagram. Actual toggles and per-app config
             can be stored under{" "}
             <span className="font-mono">
-              orgs/{decodedOrgId}/integrations
+              orgs/neon-lunchbox/integrations
             </span>{" "}
             and surfaced here once NeonHQ exposes a unified integration schema.
             ProfileMatrix then becomes the place where all these signals are

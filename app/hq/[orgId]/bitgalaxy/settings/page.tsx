@@ -60,7 +60,7 @@ export default async function BitGalaxySettingsPage({
 
         <div className="rounded-xl border border-sky-500/40 bg-slate-950/80 px-3 py-2 text-[11px] text-sky-200">
           <div className="font-mono text-[10px] text-sky-300/80">
-            orgs/{decodedOrgId}/bitgalaxyConfig/config
+            orgs/neon-lunchbox/bitgalaxyConfig/config
           </div>
           <div className="mt-1 text-[10px] text-sky-300/80">
             Read by check-ins, XP engine, and quests.

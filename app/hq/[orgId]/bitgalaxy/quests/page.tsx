@@ -50,7 +50,7 @@ export default async function BitGalaxyQuestsListPage({
         </div>
 
         <Link
-          href={`/hq/${encodeURIComponent(orgId)}/bitgalaxy/quests/create`}
+          href={`/hq/neon-lunchbox/bitgalaxy/quests/create`}
           className="inline-flex items-center justify-center rounded-xl border border-sky-500/70 bg-sky-500 px-3 py-2 text-[11px] font-semibold text-slate-950 shadow-[0_0_18px_rgba(56,189,248,0.7)] transition hover:bg-sky-400 hover:border-sky-300"
         >
           + New quest
@@ -132,9 +132,7 @@ export default async function BitGalaxyQuestsListPage({
                       </td>
                       <td className="px-3 py-2 text-right text-[11px]">
                         <Link
-                          href={`/hq/${encodeURIComponent(
-                            orgId,
-                          )}/bitgalaxy/quests/${encodeURIComponent(quest.id)}`}
+                          href={`/hq/neon-lunchbox/bitgalaxy/quests/${encodeURIComponent(quest.id)}`}
                           className="rounded-lg border border-sky-500/50 px-2 py-1 text-[11px] text-sky-100 transition hover:bg-sky-500/15"
                         >
                           Edit

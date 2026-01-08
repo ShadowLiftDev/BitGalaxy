@@ -54,9 +54,7 @@ export default async function BitGalaxyProgramsListPage({
         </div>
 
         <Link
-          href={`/hq/${encodeURIComponent(
-            decodedOrgId,
-          )}/bitgalaxy/programs/create`}
+          href={`/hq/neon-lunchbox/bitgalaxy/programs/create`}
           className="inline-flex items-center justify-center rounded-xl border border-emerald-500/70 bg-emerald-500 px-3 py-2 text-[11px] font-semibold text-slate-950 shadow-[0_0_18px_rgba(16,185,129,0.7)] transition hover:bg-emerald-400 hover:border-emerald-300"
         >
           + New program
@@ -148,9 +146,7 @@ export default async function BitGalaxyProgramsListPage({
                       </td>
                       <td className="px-3 py-2 text-right text-[11px]">
                         <Link
-                          href={`/hq/${encodeURIComponent(
-                            decodedOrgId,
-                          )}/bitgalaxy/programs/${encodeURIComponent(p.id)}`}
+                          href={`/hq/neon-lunchbox/bitgalaxy/programs/${encodeURIComponent(p.id)}`}
                           className="rounded-lg border border-emerald-500/50 px-2 py-1 text-[11px] text-emerald-100 transition hover:bg-emerald-500/15"
                         >
                           Edit

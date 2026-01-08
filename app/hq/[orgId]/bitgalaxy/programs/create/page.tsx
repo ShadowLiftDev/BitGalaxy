@@ -36,9 +36,7 @@ export default async function BitGalaxyProgramCreatePage({
         </div>
 
         <Link
-          href={`/hq/${encodeURIComponent(
-            decodedOrgId,
-          )}/bitgalaxy/programs`}
+          href={`/hq/neon-lunchbox/bitgalaxy/programs`}
           className="text-[11px] text-emerald-200/80 hover:text-emerald-100"
         >
           &larr; Back to programs

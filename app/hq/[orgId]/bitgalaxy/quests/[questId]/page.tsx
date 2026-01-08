@@ -71,7 +71,7 @@ export default async function BitGalaxyQuestEditPage({
         </div>
 
         <Link
-          href={`/hq/${encodeURIComponent(orgId)}/bitgalaxy/quests`}
+          href={`/hq/neon-lunchbox/bitgalaxy/quests`}
           className="text-[11px] text-sky-200/80 hover:text-sky-100"
         >
           &larr; Back to quests
