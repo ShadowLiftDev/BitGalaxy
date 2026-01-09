@@ -19,9 +19,28 @@ export const metadata = {
   title: "BitGalaxy – Player Dashboard",
 };
 
-export default async function BitGalaxyHomePage({
-  searchParams,
-}: BitGalaxyHomePageProps) {
+function buildGamePlayHref(
+  questId: string,
+  orgId: string,
+  userId?: string | null,
+): string | null {
+  const params = new URLSearchParams();
+  params.set("orgId", orgId);
+  if (userId) params.set("userId", userId);
+
+  switch (questId) {
+    case "neon-memory":
+      return `/bitgalaxy/games/neon-memory?${params.toString()}`;
+    case "galaxy-paddle":
+      return `/bitgalaxy/games/galaxy-paddle?${params.toString()}`;
+    case "nebula-break":
+      return `/bitgalaxy/games/nebula-break?${params.toString()}`;
+    default:
+      return null;
+  }
+}
+
+export default async function BitGalaxyHomePage({ searchParams }: BitGalaxyHomePageProps) {
   const resolved = (searchParams ? await searchParams : {}) as {
     orgId?: string;
     userId?: string;
@@ -29,11 +48,12 @@ export default async function BitGalaxyHomePage({
 
   const orgId = (resolved.orgId ?? DEFAULT_ORG_ID).trim();
   const userId = resolved.userId ?? null;
+  
 
-  // Always include orgId; include userId only when present
-  const userQuery = `?${new URLSearchParams(
-    userId ? { orgId, userId } : { orgId },
-  ).toString()}`;
+  const userQuery =
+    userId
+      ? `?${new URLSearchParams({ orgId, userId }).toString()}`
+      : "";
 
   // 1) No user yet? Show the lookup gate instead of the HUD
   if (!userId) {
@@ -44,9 +64,7 @@ export default async function BitGalaxyHomePage({
         <section className="mt-2">
           <PlayerLookupGate
             orgId={orgId}
-            joinRedirectUrl={`https://neon-hq.vercel.app/orgs/${encodeURIComponent(
-              orgId,
-            )}/landing`}
+            joinRedirectUrl={`https://neon-hq.vercel.app/orgs/${encodeURIComponent(orgId)}/landing`}
           />
         </section>
 
@@ -65,34 +83,30 @@ export default async function BitGalaxyHomePage({
   }
 
   // 2) We have a player: load player + quests
-  const [player, quests] = await Promise.all([
-    getPlayer(orgId, userId),
-    getQuests(orgId, { activeOnly: true }),
-  ]);
+const [player, quests] = await Promise.all([
+  getPlayer(orgId, userId),
+  getQuests(orgId, { activeOnly: true }),
+]);
 
-  if (!player) {
-    return (
-      <div className="space-y-6">
-        <GalaxyHeader orgName={orgId} />
-        <section className="mt-2">
-          <PlayerLookupGate
-            orgId={orgId}
-            joinRedirectUrl={`https://neon-hq.vercel.app/orgs/${encodeURIComponent(
-              orgId,
-            )}/landing`}
-          />
-        </section>
-        <p className="text-center text-[11px] text-rose-300">
-          We couldn’t load that player ID. Please look up your profile again.
-        </p>
-      </div>
-    );
-  }
+if (!player) {
+  return (
+    <div className="space-y-6">
+      <GalaxyHeader orgName={orgId} />
+      <section className="mt-2">
+        <PlayerLookupGate
+          orgId={orgId}
+          joinRedirectUrl={`https://neon-hq.vercel.app/orgs/${encodeURIComponent(orgId)}/landing`}
+        />
+      </section>
+      <p className="text-center text-[11px] text-rose-300">
+        We couldn’t load that player ID. Please look up your profile again.
+      </p>
+    </div>
+  );
+}
 
   const totalXP =
-    typeof (player as any)?.totalXP === "number"
-      ? (player as any).totalXP
-      : 0;
+    typeof (player as any)?.totalXP === "number" ? (player as any).totalXP : 0;
 
   const progress = getRankProgress(totalXP);
   const activeCount = player.activeQuestIds?.length ?? 0;
@@ -118,11 +132,11 @@ export default async function BitGalaxyHomePage({
     ? quests.filter((q) => q.id !== "signal-lock")
     : quests;
 
-  // 🚫 Filter out arcade quests everywhere on this dashboard
   const nonArcadeQuestsForDisplay = questsForDisplay.filter(
     (q: any) => q.type !== "arcade",
   );
 
+  
   return (
     <div className="space-y-6">
       <GalaxyHeader orgName={orgId} />
