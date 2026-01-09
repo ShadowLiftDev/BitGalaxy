@@ -34,6 +34,14 @@ export async function POST(
 
     const now = FieldValue.serverTimestamp() as Timestamp;
 
+    // NEW – normalize loyaltyReward from body
+    const rawLoyalty = body.loyaltyReward ?? {};
+    const loyaltyEnabled = !!rawLoyalty.enabled;
+    const loyaltyPoints =
+      loyaltyEnabled && typeof rawLoyalty.pointsPerCompletion === "number"
+        ? Math.max(0, Number(rawLoyalty.pointsPerCompletion))
+        : 0;
+
     const docRef = questsCol.doc(); // Auto ID
 
     const questData = {
@@ -51,6 +59,13 @@ export async function POST(
       checkinCode: body.checkinCode ?? null,
       requiresStaffApproval: body.requiresStaffApproval ?? false,
       metadata: body.metadata ?? {},
+
+      // NEW – loyalty reward config
+      loyaltyReward: {
+        enabled: loyaltyEnabled,
+        pointsPerCompletion: loyaltyPoints,
+      },
+
       createdAt: now,
       updatedAt: now,
     };

@@ -31,6 +31,12 @@ export interface QuestFormProps {
     checkinCode?: string | null;
     requiresStaffApproval?: boolean;
     metadata?: Record<string, any> | null;
+
+    // NEW – for loyalty config
+    loyaltyReward?: {
+      enabled?: boolean;
+      pointsPerCompletion?: number;
+    } | null;
   };
 }
 
@@ -74,6 +80,14 @@ export function QuestForm({
   const [metadataJson, setMetadataJson] = useState(
     initialData?.metadata ? JSON.stringify(initialData.metadata, null, 2) : "",
   );
+    const [loyaltyEnabled, setLoyaltyEnabled] = useState(
+    initialData?.loyaltyReward?.enabled ?? false,
+  );
+  const [loyaltyPoints, setLoyaltyPoints] = useState(
+    typeof initialData?.loyaltyReward?.pointsPerCompletion === "number"
+      ? initialData.loyaltyReward.pointsPerCompletion
+      : 0,
+  );
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +107,16 @@ export function QuestForm({
     if (Number.isNaN(xpValue) || xpValue < 0) {
       setError("XP must be a non-negative number");
       return;
+    }
+
+    // NEW – loyalty validation
+    let loyaltyPointsValue = 0;
+    if (loyaltyEnabled) {
+      loyaltyPointsValue = Number(loyaltyPoints);
+      if (Number.isNaN(loyaltyPointsValue) || loyaltyPointsValue < 0) {
+        setError("Loyalty points must be a non-negative number");
+        return;
+      }
     }
 
     let maxCompletions: number | null = null;
@@ -133,6 +157,18 @@ export function QuestForm({
         checkinCode: checkinCode.trim() || null,
         requiresStaffApproval,
         metadata: metadata ?? null,
+
+        // NEW – loyalty config we send to the API
+        loyaltyReward:
+          loyaltyEnabled && loyaltyPointsValue > 0
+            ? {
+                enabled: true,
+                pointsPerCompletion: loyaltyPointsValue,
+              }
+            : {
+                enabled: false,
+                pointsPerCompletion: 0,
+              },
       };
 
       if (mode === "edit") {
@@ -273,6 +309,42 @@ export function QuestForm({
             className="w-full rounded-lg border border-sky-500/40 bg-slate-950/80 px-3 py-2 text-xs text-sky-50 outline-none placeholder:text-sky-400/50 focus:border-sky-300"
           />
         </div>
+      </div>
+
+      {/* Loyalty Points Config */}
+      <div className="mt-2 rounded-xl border border-emerald-500/40 bg-emerald-950/10 p-3 space-y-2">
+        <label className="flex items-center gap-2 text-[11px] text-emerald-200">
+          <input
+            type="checkbox"
+            checked={loyaltyEnabled}
+            onChange={(e) => setLoyaltyEnabled(e.target.checked)}
+            className="h-3 w-3 accent-emerald-500"
+          />
+          <span>
+            Also grant{" "}
+            <span className="font-semibold">loyalty points</span> when this
+            quest is completed
+          </span>
+        </label>
+
+        {loyaltyEnabled && (
+          <div className="space-y-1">
+            <label className="text-[11px] text-emerald-200/90">
+              Loyalty points per completion
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={loyaltyPoints}
+              onChange={(e) => setLoyaltyPoints(Number(e.target.value))}
+              className="w-full rounded-lg border border-emerald-500/40 bg-slate-950/80 px-3 py-2 text-xs text-emerald-50 outline-none focus:border-emerald-300"
+            />
+            <p className="mt-1 text-[10px] text-emerald-200/80">
+              These points will be added to the member&apos;s RewardCircle
+              balance whenever this quest reward is granted.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Check-in code + staff approval */}
