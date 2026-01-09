@@ -48,7 +48,6 @@ export default async function BitGalaxyHomePage({ searchParams }: BitGalaxyHomeP
 
   const orgId = (resolved.orgId ?? DEFAULT_ORG_ID).trim();
   const userId = resolved.userId ?? null;
-  
 
   const userQuery =
     userId
@@ -329,31 +328,37 @@ if (!player) {
                   />
                 </div>
 
-                {/* ⭐ Arcade / View Games button (centered) */}
-                <div className="mt-3 flex justify-center">
-                  <Link
-                    href={`/bitgalaxy/games${userQuery}`}
-                    className="inline-flex items-center gap-2 rounded-full bg-sky-500 px-5 py-2 text-[11px] font-semibold text-slate-950 shadow-[0_0_24px_rgba(56,189,248,0.7)] transition hover:bg-sky-400"
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.9)]" />
-                    Open Arcade / View Games
-                  </Link>
-                </div>
+      {/* ⭐ Arcade / View Games button (centered) */}
+      <div className="mt-3 flex justify-center">
+        <Link
+          href={`/bitgalaxy/games${userQuery}`}
+          className="inline-flex items-center gap-2 rounded-full bg-sky-500 px-5 py-2 text-[11px] font-semibold text-slate-950 shadow-[0_0_24px_rgba(56,189,248,0.7)] transition hover:bg-sky-400"
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.9)]" />
+          Open Arcade / View Games
+        </Link>
+      </div>
 
-                {/* Optional mini quest grid in HUD – non-arcade only */}
-                {nonArcadeQuestsForDisplay.length > 0 && (
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    {nonArcadeQuestsForDisplay.map((quest) => (
-                      <QuestCard
-                        key={quest.id}
-                        quest={quest}
-                        orgId={orgId}
-                        userId={userId}
-                        playHref={null}
-                      />
-                    ))}
-                  </div>
-                )}
+      {/* and ALL other links already using userQuery now include orgId too */}
+      {/* QuestCard map remains the same */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {questsForDisplay.map((quest) => {
+          const isArcade = quest.type === "arcade";
+          const playHref = isArcade
+            ? buildGamePlayHref(quest.id, orgId, userId)
+            : null;
+
+          return (
+            <QuestCard
+              key={quest.id}
+              quest={quest}
+              orgId={orgId}
+              userId={userId}
+              playHref={playHref}
+            />
+          );
+        })}
+      </div>
               </div>
             </div>
           </div>
@@ -484,30 +489,31 @@ if (!player) {
                 Tonight&apos;s available quests
               </h2>
               <span className="rounded-full border border-sky-500/60 bg-sky-500/15 px-2 py-0.5 text-[10px] font-medium text-sky-100">
-                {nonArcadeQuestsForDisplay.length} contract
-                {nonArcadeQuestsForDisplay.length === 1 ? "" : "s"} online
+                {questsForDisplay.length} contract
+                {questsForDisplay.length === 1 ? "" : "s"} online
               </span>
             </div>
 
-            {nonArcadeQuestsForDisplay.length === 0 ? (
-              <p className="rounded-xl border border-sky-500/40 bg-slate-950/95 px-4 py-3 text-xs text-sky-100/85">
-                No quests available yet. Once an owner configures missions for
-                this world in NeonHQ &gt; BitGalaxy, they&apos;ll appear here
-                as contracts you can accept.
-              </p>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {nonArcadeQuestsForDisplay.map((quest) => (
-                  <QuestCard
-                    key={quest.id}
-                    quest={quest}
-                    orgId={orgId}
-                    userId={userId}
-                    playHref={null}
-                  />
-                ))}
-              </div>
-            )}
+{nonArcadeQuestsForDisplay.length === 0 ? (
+  <p className="rounded-xl border border-sky-500/40 bg-slate-950/95 px-4 py-3 text-xs text-sky-100/85">
+    No quests available yet. Once an owner configures missions for
+    this world in NeonHQ &gt; BitGalaxy, they&apos;ll appear here
+    as contracts you can accept.
+  </p>
+) : (
+  <div className="grid gap-3 sm:grid-cols-2">
+    {nonArcadeQuestsForDisplay.map((quest) => (
+      <QuestCard
+        key={quest.id}
+        quest={quest}
+        orgId={orgId}
+        userId={userId}
+        // no playHref here – arcade quests are filtered out
+        playHref={null}
+      />
+    ))}
+  </div>
+)}
           </div>
         </div>
 
@@ -519,8 +525,9 @@ if (!player) {
             </h3>
             <p className="mt-1">
               Every check-in, quest, and reward funnels XP into the BitGalaxy
-              core. This console shows your <strong>personal leaderboard</strong>{" "}
-              for this world — rank, trajectory, and active missions.
+              core. This console shows your{" "}
+              <strong>personal leaderboard</strong> for this world — rank,
+              trajectory, and active missions.
             </p>
             <p className="mt-2 text-slate-400">
               When we bring the Global Arcade online, this same ID will let you
