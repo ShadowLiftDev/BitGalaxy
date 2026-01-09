@@ -42,10 +42,24 @@ export async function POST(
         ? Math.max(0, Number(rawLoyalty.pointsPerCompletion))
         : 0;
 
-    const docRef = questsCol.doc(); // Auto ID
+    // 🔹 NEW – derive a safe ID from the quest title
+    const rawTitle = (body.title ?? "Untitled Quest").toString().trim();
+    const baseId =
+      rawTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")      // non-alphanumerics → "-"
+        .replace(/^-+|-+$/g, "") || "quest"; // trim leading/trailing "-"
+
+    let docRef = questsCol.doc(baseId);
+    const existing = await docRef.get();
+
+    if (existing.exists) {
+      // If a quest with this name already exists, fall back to auto-ID
+      docRef = questsCol.doc();
+    }
 
     const questData = {
-      title: body.title ?? "Untitled Quest",
+      title: rawTitle || "Untitled Quest",
       description: body.description ?? "",
       orgId,
       programId: body.programId ?? null,
@@ -60,7 +74,7 @@ export async function POST(
       requiresStaffApproval: body.requiresStaffApproval ?? false,
       metadata: body.metadata ?? {},
 
-      // NEW – loyalty reward config
+      // loyalty reward config
       loyaltyReward: {
         enabled: loyaltyEnabled,
         pointsPerCompletion: loyaltyPoints,

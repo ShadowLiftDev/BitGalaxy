@@ -51,6 +51,22 @@ export async function POST(
       updatedAt: now,
     };
 
+    // 🔹 NEW – handle loyaltyReward explicitly
+    if ("loyaltyReward" in body) {
+      const rawLoyalty = body.loyaltyReward ?? {};
+      const loyaltyEnabled = !!rawLoyalty.enabled;
+      const loyaltyPoints =
+        loyaltyEnabled &&
+        typeof rawLoyalty.pointsPerCompletion === "number"
+          ? Math.max(0, Number(rawLoyalty.pointsPerCompletion))
+          : 0;
+
+      updateData.loyaltyReward = {
+        enabled: loyaltyEnabled,
+        pointsPerCompletion: loyaltyPoints,
+      };
+    }
+
     const allowedFields = [
       "title",
       "description",

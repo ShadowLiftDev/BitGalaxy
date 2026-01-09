@@ -2,7 +2,7 @@ import Link from "next/link";
 import { adminDb } from "@/lib/firebase-admin";
 
 type BitGalaxyQuestsListPageProps = {
-  params: { orgId: string };
+  params: Promise<{ orgId: string }>;
 };
 
 export const metadata = {
@@ -27,8 +27,9 @@ async function getOrgQuests(orgId: string) {
 export default async function BitGalaxyQuestsListPage({
   params,
 }: BitGalaxyQuestsListPageProps) {
-  const orgId = decodeURIComponent(params.orgId);
-  const quests = await getOrgQuests(orgId);
+  const { orgId } = await params;
+  const decodedOrgId = decodeURIComponent(orgId);
+  const quests = await getOrgQuests(decodedOrgId);
 
   return (
     <div className="space-y-5">
@@ -50,7 +51,7 @@ export default async function BitGalaxyQuestsListPage({
         </div>
 
         <Link
-          href={`/hq/neon-lunchbox/bitgalaxy/quests/create`}
+          href={`/hq/${encodeURIComponent(decodedOrgId)}/bitgalaxy/quests/create`}
           className="inline-flex items-center justify-center rounded-xl border border-sky-500/70 bg-sky-500 px-3 py-2 text-[11px] font-semibold text-slate-950 shadow-[0_0_18px_rgba(56,189,248,0.7)] transition hover:bg-sky-400 hover:border-sky-300"
         >
           + New quest
@@ -132,7 +133,9 @@ export default async function BitGalaxyQuestsListPage({
                       </td>
                       <td className="px-3 py-2 text-right text-[11px]">
                         <Link
-                          href={`/hq/neon-lunchbox/bitgalaxy/quests/${encodeURIComponent(quest.id)}`}
+                          href={`/hq/${encodeURIComponent(
+                            decodedOrgId,
+                          )}/bitgalaxy/quests/${encodeURIComponent(quest.id)}`}
                           className="rounded-lg border border-sky-500/50 px-2 py-1 text-[11px] text-sky-100 transition hover:bg-sky-500/15"
                         >
                           Edit
@@ -148,9 +151,9 @@ export default async function BitGalaxyQuestsListPage({
       )}
 
       <p className="text-[11px] text-sky-200/80">
-        Quests are the **atomic missions**. Programs group them into seasons;
-        ProfileMatrix will eventually show which quests drive the best
-        cross-app behavior (visits, spending, referrals) across the Neon
+        Quests are the <strong>atomic missions</strong>. Programs group them
+        into seasons; ProfileMatrix will eventually show which quests drive the
+        best cross-app behavior (visits, spending, referrals) across the Neon
         Ecosystem.
       </p>
     </div>
