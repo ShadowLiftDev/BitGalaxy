@@ -1,144 +1,195 @@
-import Link from "next/link";
-import type { BitGalaxyQuest } from "@/lib/bitgalaxy/getQuests";
+"use client";
 
-type QuestStatusBadge = "active" | "available" | "completed";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+
+type Quest = {
+  id: string;
+  name?: string;
+  title?: string;
+  subtitle?: string;
+  description?: string;
+  xpReward?: number;
+  type?: string; // "standard" | "arcade" | etc.
+  status?: string; // "active", "completed", etc.
+  tags?: string[];
+  [key: string]: any;
+};
 
 type QuestCardProps = {
-  quest: BitGalaxyQuest;
+  quest: Quest;
   orgId: string;
-
-  variant?: "default" | "carousel";
-  status?: QuestStatusBadge;
-
-  // Optional: the current player (used only for labels if needed later)
   userId?: string | null;
-
-  // NEW: if provided, shows a Play button; if null, card is purely informational
+  /**
+   * For arcade quests, pass a fully built href (e.g. /bitgalaxy/games/neon-memory?orgId=...&userId=...)
+   * For non-arcade quests, leave this null and we show "Accept quest" instead.
+   */
   playHref?: string | null;
 };
 
-const typeLabels: Record<string, string> = {
-  checkin: "Check-in",
-  purchase: "Purchase",
-  photo: "Photo",
-  referral: "Referral",
-  visit: "Visit",
-  custom: "Quest",
-  arcade: "Arcade",
-};
+export function QuestCard({ quest, orgId, userId, playHref }: QuestCardProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
-function statusPill(status?: QuestStatusBadge) {
-  if (status === "completed") {
-    return "border-emerald-400/50 bg-emerald-500/10 text-emerald-200";
+  const title = quest.name || quest.title || "Untitled quest";
+  const subtitle = quest.subtitle;
+  const description = quest.description;
+  const xpReward =
+    typeof quest.xpReward === "number" ? quest.xpReward : quest.rewardXP;
+
+  const isArcade = quest.type === "arcade";
+
+  const isCompleted =
+    quest.status === "completed" ||
+    quest.completed === true ||
+    quest.playerCompleted === true;
+
+  const isActive =
+    quest.status === "active" ||
+    quest.active === true ||
+    quest.playerActive === true;
+
+  const canAccept =
+    !!userId && !isArcade && !isCompleted && !isActive; // basic guard
+
+  function handleAcceptClick() {
+    if (!userId || isPending) return;
+
+    setError(null);
+
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/bitgalaxy/quests/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include", // 🔑 send playerSession cookie
+          body: JSON.stringify({
+            orgId,
+            questId: quest.id,
+          }),
+        });
+
+        const json = await res.json().catch(() => ({} as any));
+
+        if (!res.ok) {
+          throw new Error(
+            json?.error ||
+              json?.message ||
+              "We couldn’t start that quest. Please try again."
+          );
+        }
+
+        // On success, refresh the page so HUD + quest status update
+        router.refresh();
+      } catch (err: any) {
+        console.error("Start quest failed:", err);
+        setError(
+          err?.message ||
+            "We couldn’t start that quest. Please try again in a moment."
+        );
+      }
+    });
   }
-  if (status === "active") {
-    return "border-sky-400/50 bg-sky-500/10 text-sky-200";
-  }
-  return "border-slate-500/50 bg-slate-900/60 text-slate-200";
-}
-
-export function QuestCard({
-  quest,
-  orgId,
-  variant = "default",
-  status = "available",
-  userId,   // currently unused, but kept for future tweaks
-  playHref, // NEW
-}: QuestCardProps) {
-  const typeLabel = typeLabels[quest.type] ?? "Quest";
-
-  const coverImageUrl =
-    (quest as any).coverImageUrl ||
-    (quest as any).imageUrl ||
-    (quest as any).media?.imageUrl ||
-    null;
 
   return (
-    <div
-      className={[
-        "group overflow-hidden rounded-2xl border border-sky-500/40 bg-slate-950/60 transition-colors",
-        "hover:border-sky-300/80 hover:bg-slate-900/80",
-        variant === "carousel" ? "min-h-[340px]" : "p-4",
-      ].join(" ")}
-    >
-      {/* Screenshot (carousel variant) */}
-      {variant === "carousel" && (
-        <div className="relative">
-          {coverImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={coverImageUrl}
-              alt={quest.title}
-              className="h-[160px] w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-[160px] items-center justify-center bg-slate-900/50 text-[11px] text-sky-200/70">
-              Screenshot not set
-            </div>
+    <article className="relative flex flex-col justify-between rounded-2xl border border-sky-500/40 bg-slate-950/95 p-4 text-[11px] text-sky-100 shadow-[0_0_26px_rgba(56,189,248,0.35)]">
+      {/* top label row */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-xs font-semibold text-sky-50">{title}</h3>
+          {subtitle && (
+            <p className="mt-0.5 text-[10px] text-sky-300/85">{subtitle}</p>
+          )}
+        </div>
+
+        <div className="flex flex-col items-end gap-1">
+          {typeof xpReward === "number" && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/70 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.9)]" />
+              +{xpReward.toLocaleString()} XP
+            </span>
           )}
 
-          <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-            <span
-              className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${statusPill(
-                status,
-              )}`}
-            >
-              {status}
+          {/* status chip */}
+          {isCompleted ? (
+            <span className="rounded-full border border-slate-500/70 bg-slate-800/80 px-2 py-0.5 text-[10px] text-slate-200">
+              Completed
             </span>
-            <span className="rounded-full border border-sky-400/40 bg-sky-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-sky-200">
-              {typeLabel}
+          ) : isActive ? (
+            <span className="rounded-full border border-sky-500/70 bg-sky-500/10 px-2 py-0.5 text-[10px] text-sky-100">
+              Active
             </span>
-          </div>
+          ) : isArcade ? (
+            <span className="rounded-full border border-violet-500/70 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-100">
+              Arcade
+            </span>
+          ) : null}
+        </div>
+      </div>
 
-          <div className="absolute bottom-3 right-3 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">
-            +{quest.xp} XP
-          </div>
+      {/* body copy */}
+      {description && (
+        <p className="mt-2 line-clamp-3 text-[11px] text-sky-100/85">
+          {description}
+        </p>
+      )}
+
+      {/* tags, if any */}
+      {Array.isArray(quest.tags) && quest.tags.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {quest.tags.map((tag: string) => (
+            <span
+              key={tag}
+              className="rounded-full border border-slate-700/80 bg-slate-900/80 px-2 py-0.5 text-[10px] text-slate-300"
+            >
+              {tag}
+            </span>
+          ))}
         </div>
       )}
 
-      {/* Body */}
-      <div className={variant === "carousel" ? "p-4" : ""}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-sky-100 group-hover:text-sky-200">
-              {quest.title}
-            </h3>
-            <p className="mt-1 line-clamp-3 text-xs text-sky-200/80">
-              {quest.description}
-            </p>
-          </div>
-
-          {variant !== "carousel" && (
-            <div className="flex flex-col items-end gap-1">
-              <span className="rounded-full border border-sky-400/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-sky-300/90">
-                {typeLabel}
-              </span>
-              <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">
-                +{quest.xp} XP
-              </span>
-            </div>
-          )}
+      {/* footer actions */}
+      <div className="mt-3 flex items-center justify-between gap-2">
+        {/* left: error, if any */}
+        <div className="min-h-[1.2em] text-[10px] text-rose-300">
+          {error}
         </div>
 
-        {variant === "carousel" && (
-          <div className="mt-3 inline-flex items-center gap-2 text-[10px] text-sky-200/70">
-            <span className="h-1.5 w-1.5 rounded-full bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.8)]" />
-            Mission briefing
-          </div>
-        )}
-
-        {/* NEW: play button for game quests only */}
-        {playHref && (
-          <div className="mt-4 flex justify-end">
-            <Link
-              href={playHref}
-              className="inline-flex items-center justify-center rounded-full bg-sky-500 px-3 py-1.5 text-[11px] font-semibold text-slate-950 shadow-[0_0_16px_rgba(56,189,248,0.7)] transition hover:bg-sky-400"
-            >
-              ▶ Play
-            </Link>
-          </div>
-        )}
+        {/* right: action button(s) */}
+        {isArcade && playHref ? (
+          <Link
+            href={playHref}
+            className="inline-flex items-center gap-1 rounded-full bg-sky-500 px-3 py-1.5 text-[11px] font-semibold text-slate-950 shadow-[0_0_18px_rgba(56,189,248,0.75)] transition hover:bg-sky-400"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.9)]" />
+            Play now
+          </Link>
+        ) : canAccept ? (
+          <button
+            type="button"
+            onClick={handleAcceptClick}
+            disabled={isPending}
+            className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-slate-950 shadow-[0_0_18px_rgba(16,185,129,0.75)] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-slate-950" />
+            {isPending ? "Accepting…" : "Accept quest"}
+          </button>
+        ) : isCompleted ? (
+          <span className="text-[10px] text-slate-400">
+            Quest complete
+          </span>
+        ) : isActive ? (
+          <span className="text-[10px] text-sky-300">
+            Quest in progress
+          </span>
+        ) : !userId ? (
+          <span className="text-[10px] text-slate-400">
+            Link your player ID to accept
+          </span>
+        ) : null}
       </div>
-    </div>
+    </article>
   );
 }
