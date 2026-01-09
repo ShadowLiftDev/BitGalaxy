@@ -2,17 +2,18 @@ import Link from "next/link";
 import { QuestForm } from "@/components/bitgalaxy/admin/QuestForm";
 
 type BitGalaxyQuestCreatePageProps = {
-  params: { orgId: string };
+  params: Promise<{ orgId: string }>;
 };
 
 export const metadata = {
   title: "BitGalaxy – Create Quest",
 };
 
-export default function BitGalaxyQuestCreatePage({
+export default async function BitGalaxyQuestCreatePage({
   params,
 }: BitGalaxyQuestCreatePageProps) {
-  const orgId = decodeURIComponent(params.orgId);
+  const { orgId } = await params;
+  const decodedOrgId = decodeURIComponent(orgId);
 
   return (
     <div className="space-y-5">
@@ -33,7 +34,7 @@ export default function BitGalaxyQuestCreatePage({
         </div>
 
         <Link
-          href={`/hq/neon-lunchbox/bitgalaxy/quests`}
+          href={`/hq/${encodeURIComponent(decodedOrgId)}/bitgalaxy/quests`}
           className="text-[11px] text-sky-200/80 hover:text-sky-100"
         >
           &larr; Back to quests
@@ -42,7 +43,7 @@ export default function BitGalaxyQuestCreatePage({
 
       {/* FORM CONTAINER */}
       <section className="rounded-2xl border border-sky-500/40 bg-slate-950/90 p-4 shadow-[0_0_32px_rgba(56,189,248,0.4)]">
-        <QuestForm orgId={orgId} mode="create" />
+        <QuestForm orgId={decodedOrgId} mode="create" />
       </section>
     </div>
   );
