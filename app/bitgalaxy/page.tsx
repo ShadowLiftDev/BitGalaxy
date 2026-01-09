@@ -12,7 +12,6 @@ const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ?? "neon-lunchbox";
 
 type BitGalaxyHomePageProps = {
-  // Matches how you're already using searchParams with Promise<>
   searchParams?: Promise<{ userId?: string; orgId?: string }>;
 };
 
@@ -20,9 +19,67 @@ export const metadata = {
   title: "BitGalaxy – Player Dashboard",
 };
 
-export default async function BitGalaxyHomePage({
-  searchParams,
-}: BitGalaxyHomePageProps) {
+function buildGamePlayHref(
+  questId: string,
+  orgId: string,
+  userId?: string | null,
+): string | null {
+  const params = new URLSearchParams();
+  params.set("orgId", orgId);
+  if (userId) params.set("userId", userId);
+
+  switch (questId) {
+    case "neon-memory":
+      return `/bitgalaxy/games/neon-memory?${params.toString()}`;
+    case "galaxy-paddle":
+      return `/bitgalaxy/games/galaxy-paddle?${params.toString()}`;
+    case "nebula-break":
+      return `/bitgalaxy/games/nebula-break?${params.toString()}`;
+    default:
+      return null;
+  }
+}
+
+function toSerializable(value: any): any {
+  if (value == null) return value;
+
+  // Handle arrays
+  if (Array.isArray(value)) {
+    return value.map(toSerializable);
+  }
+
+  // Handle objects (including Firestore Timestamps)
+  if (typeof value === "object") {
+    // Firestore Timestamp (admin or client)
+    if (
+      typeof (value as any).toMillis === "function" ||
+      (typeof (value as any)._seconds === "number" &&
+        typeof (value as any)._nanoseconds === "number")
+    ) {
+      try {
+        if (typeof (value as any).toMillis === "function") {
+          return (value as any).toMillis();
+        }
+        const secs = (value as any)._seconds ?? 0;
+        const nanos = (value as any)._nanoseconds ?? 0;
+        return secs * 1000 + Math.floor(nanos / 1e6);
+      } catch {
+        return null;
+      }
+    }
+
+    const plain: any = {};
+    for (const [k, v] of Object.entries(value)) {
+      plain[k] = toSerializable(v);
+    }
+    return plain;
+  }
+
+  // primitives are fine
+  return value;
+}
+
+export default async function BitGalaxyHomePage({ searchParams }: BitGalaxyHomePageProps) {
   const resolved = (searchParams ? await searchParams : {}) as {
     orgId?: string;
     userId?: string;
@@ -30,16 +87,14 @@ export default async function BitGalaxyHomePage({
 
   const orgId = (resolved.orgId ?? DEFAULT_ORG_ID).trim();
   const userId = resolved.userId ?? null;
+  
 
-  // Always carry orgId; optionally carry userId
-  const userQuery = `?${new URLSearchParams(
-    userId ? { orgId, userId } : { orgId },
-  ).toString()}`;
+  const userQuery =
+    userId
+      ? `?${new URLSearchParams({ orgId, userId }).toString()}`
+      : "";
 
-  // 1) NO USER YET → show PlayerLookupGate
-  // This matches your PlayerLookupGate contract:
-  // - orgId required
-  // - redirectBase defaults to "/bitgalaxy" (same page)
+  // 1) No user yet? Show the lookup gate instead of the HUD
   if (!userId) {
     return (
       <div className="space-y-6">
@@ -48,11 +103,7 @@ export default async function BitGalaxyHomePage({
         <section className="mt-2">
           <PlayerLookupGate
             orgId={orgId}
-            redirectBase="/bitgalaxy"
-            joinRedirectUrl={`https://neon-hq.vercel.app/orgs/${encodeURIComponent(
-              orgId,
-            )}/landing`}
-            joinCtaLabel="Create my BitGalaxy profile"
+            joinRedirectUrl={`https://neon-hq.vercel.app/orgs/${encodeURIComponent(orgId)}/landing`}
           />
         </section>
 
@@ -70,38 +121,31 @@ export default async function BitGalaxyHomePage({
     );
   }
 
-  // 2) WE HAVE A USER → load player + quests
-  const [player, quests] = await Promise.all([
-    getPlayer(orgId, userId),
-    getQuests(orgId, { activeOnly: true }),
-  ]);
+  // 2) We have a player: load player + quests
+const [player, quests] = await Promise.all([
+  getPlayer(orgId, userId),
+  getQuests(orgId, { activeOnly: true }),
+]);
 
-  if (!player) {
-    // If lookup succeeded technically but player doc is missing, fall back to gate again
-    return (
-      <div className="space-y-6">
-        <GalaxyHeader orgName={orgId} />
-        <section className="mt-2">
-          <PlayerLookupGate
-            orgId={orgId}
-            redirectBase="/bitgalaxy"
-            joinRedirectUrl={`https://neon-hq.vercel.app/orgs/${encodeURIComponent(
-              orgId,
-            )}/landing`}
-            joinCtaLabel="Create my BitGalaxy profile"
-          />
-        </section>
-        <p className="text-center text-[11px] text-rose-300">
-          We couldn’t load that player ID. Please look up your profile again.
-        </p>
-      </div>
-    );
-  }
+if (!player) {
+  return (
+    <div className="space-y-6">
+      <GalaxyHeader orgName={orgId} />
+      <section className="mt-2">
+        <PlayerLookupGate
+          orgId={orgId}
+          joinRedirectUrl={`https://neon-hq.vercel.app/orgs/${encodeURIComponent(orgId)}/landing`}
+        />
+      </section>
+      <p className="text-center text-[11px] text-rose-300">
+        We couldn’t load that player ID. Please look up your profile again.
+      </p>
+    </div>
+  );
+}
 
   const totalXP =
-    typeof (player as any)?.totalXP === "number"
-      ? (player as any).totalXP
-      : 0;
+    typeof (player as any)?.totalXP === "number" ? (player as any).totalXP : 0;
 
   const progress = getRankProgress(totalXP);
   const activeCount = player.activeQuestIds?.length ?? 0;
@@ -128,10 +172,15 @@ export default async function BitGalaxyHomePage({
     : quests;
 
   // 🚫 Filter out arcade quests on this page
-  const nonArcadeQuestsForDisplay = questsForDisplay.filter(
+  const nonArcadeQuestsRaw = questsForDisplay.filter(
     (q: any) => q.type !== "arcade",
   );
 
+  // ✅ Make quests safe for Client Components (strip Timestamps, etc.)
+  const nonArcadeQuestsForDisplay = nonArcadeQuestsRaw.map((q) =>
+    toSerializable(q),
+  );
+  
   return (
     <div className="space-y-6">
       <GalaxyHeader orgName={orgId} />
@@ -158,13 +207,14 @@ export default async function BitGalaxyHomePage({
 
       {/* PRIMARY HUD – cyberpunk XP cockpit */}
       <section className="relative overflow-hidden rounded-3xl border border-cyan-500/50 bg-slate-950/90 p-5 sm:p-6 shadow-[0_0_50px_rgba(34,211,238,0.45)]">
+        {/* holo background */}
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 opacity-60 mix-blend-screen [background-image:radial-gradient(circle_at_top_left,_rgba(56,189,248,0.4)_0,_transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(129,140,248,0.35)_0,_transparent_55%),radial-gradient(circle_at_center,_rgba(16,185,129,0.28)_0,_transparent_60%)]"
         />
 
         <div className="relative grid gap-5 lg:grid-cols-[1.7fr_minmax(260px,1fr)]">
-          {/* LEFT: XP + rank */}
+          {/* LEFT: massive XP + rank */}
           <div className="space-y-4">
             {/* player holo id */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -187,6 +237,7 @@ export default async function BitGalaxyHomePage({
                     <span className="font-mono text-sky-100">{orgId}</span>
                   </p>
 
+                  {/* 🌐 Signal Lock badge (only after completion) */}
                   {hasSignalLock && (
                     <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-400/70 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-200">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.9)]" />
@@ -196,6 +247,7 @@ export default async function BitGalaxyHomePage({
                 </div>
               </div>
 
+              {/* rank chip */}
               <div className="flex items-center justify-end gap-3">
                 <div className="text-right">
                   <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-300/80">
@@ -209,8 +261,9 @@ export default async function BitGalaxyHomePage({
               </div>
             </div>
 
-            {/* XP + tier stats */}
+            {/* BIG XP readout + mini stats */}
             <div className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+              {/* big XP number */}
               <div className="relative overflow-hidden rounded-2xl border border-emerald-400/50 bg-slate-950/95 p-4 shadow-[0_0_30px_rgba(16,185,129,0.5)]">
                 <div
                   aria-hidden="true"
@@ -244,7 +297,9 @@ export default async function BitGalaxyHomePage({
                 </div>
               </div>
 
+              {/* side stats stack */}
               <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-1">
+                {/* TIER WINDOW CARD */}
                 <div className="rounded-2xl border border-sky-500/50 bg-slate-950/95 p-3 text-[11px] text-sky-100 shadow-[0_0_24px_rgba(56,189,248,0.45)]">
                   <p className="text-[10px] uppercase tracking-[0.26em] text-sky-300/85">
                     Tier window
@@ -318,7 +373,7 @@ export default async function BitGalaxyHomePage({
                   />
                 </div>
 
-                {/* Open Arcade / Games */}
+                {/* ⭐ Arcade / View Games button (centered) */}
                 <div className="mt-3 flex justify-center">
                   <Link
                     href={`/bitgalaxy/games${userQuery}`}
@@ -349,6 +404,7 @@ export default async function BitGalaxyHomePage({
 
           {/* RIGHT: quick nav + mini console */}
           <div className="space-y-4">
+            {/* three primary stat tiles */}
             <div className="grid gap-3 text-[11px] sm:grid-cols-3 lg:grid-cols-1">
               <Link
                 href={`/bitgalaxy/history${userQuery}`}
@@ -388,6 +444,7 @@ export default async function BitGalaxyHomePage({
               </Link>
             </div>
 
+            {/* nav matrix */}
             <div className="rounded-2xl border border-slate-800/80 bg-slate-950/95 p-4 text-[11px] text-slate-200 shadow-[0_0_28px_rgba(15,23,42,0.95)]">
               <h3 className="text-[12px] font-semibold text-slate-50">
                 Navigation Matrix
@@ -441,6 +498,7 @@ export default async function BitGalaxyHomePage({
               NeonMatrix feeds.
             </p>
 
+            {/* Owner CTA duplicated here */}
             <p className="mt-1 text-[10px] text-slate-500">
               Owner of this world?{" "}
               <a
@@ -457,6 +515,7 @@ export default async function BitGalaxyHomePage({
 
       {/* SECONDARY GRID: quest feed + supporting copy */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
+        {/* quest feed */}
         <div className="relative overflow-hidden rounded-2xl border border-sky-500/40 bg-slate-950/90 p-5 shadow-[0_0_36px_rgba(56,189,248,0.4)]">
           <div
             aria-hidden="true"
@@ -496,6 +555,7 @@ export default async function BitGalaxyHomePage({
           </div>
         </div>
 
+        {/* side copy / lore */}
         <aside className="space-y-3 text-[11px] text-slate-300/85">
           <div className="rounded-2xl border border-slate-800/80 bg-slate-950/95 p-4 shadow-[0_0_28px_rgba(15,23,42,0.9)]">
             <h3 className="text-[12px] font-semibold text-sky-50">

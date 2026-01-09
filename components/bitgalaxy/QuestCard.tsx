@@ -36,8 +36,14 @@ export function QuestCard({ quest, orgId, userId, playHref }: QuestCardProps) {
   const title = quest.name || quest.title || "Untitled quest";
   const subtitle = quest.subtitle;
   const description = quest.description;
-  const xpReward =
-    typeof quest.xpReward === "number" ? quest.xpReward : quest.rewardXP;
+const xpReward =
+  typeof quest.xpReward === "number"
+    ? quest.xpReward
+    : typeof (quest as any).xp === "number"
+    ? (quest as any).xp
+    : typeof (quest as any).rewardXP === "number"
+    ? (quest as any).rewardXP
+    : undefined;
 
   const isArcade = quest.type === "arcade";
 
