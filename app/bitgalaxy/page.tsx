@@ -171,14 +171,22 @@ if (!player) {
     ? quests.filter((q) => q.id !== "signal-lock")
     : quests;
 
-  // 🚫 Filter out arcade quests on this page
-  const nonArcadeQuestsRaw = questsForDisplay.filter(
-    (q: any) => q.type !== "arcade",
+  // Build sets of the player's quest state
+  const activeQuestIds = new Set(player.activeQuestIds ?? []);
+  const completedQuestIds = new Set(player.completedQuestIds ?? []);
+
+  // First attach playerActive / playerCompleted, then serialize
+  const questsWithPlayerState = questsForDisplay.map((q: any) =>
+    toSerializable({
+      ...q,
+      playerActive: activeQuestIds.has(q.id),
+      playerCompleted: completedQuestIds.has(q.id),
+    }),
   );
 
-  // ✅ Make quests safe for Client Components (strip Timestamps, etc.)
-  const nonArcadeQuestsForDisplay = nonArcadeQuestsRaw.map((q) =>
-    toSerializable(q),
+  // 🚫 Filter out arcade quests on this page
+  const nonArcadeQuestsForDisplay = questsWithPlayerState.filter(
+    (q: any) => q.type !== "arcade",
   );
   
   return (

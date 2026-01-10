@@ -125,7 +125,7 @@ const xpReward =
             </span>
           ) : isActive ? (
             <span className="rounded-full border border-sky-500/70 bg-sky-500/10 px-2 py-0.5 text-[10px] text-sky-100">
-              Active
+              Accepted
             </span>
           ) : isArcade ? (
             <span className="rounded-full border border-violet-500/70 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-100">
@@ -188,7 +188,7 @@ const xpReward =
           </span>
         ) : isActive ? (
           <span className="text-[10px] text-sky-300">
-            Quest in progress
+            Quest accepted
           </span>
         ) : !userId ? (
           <span className="text-[10px] text-slate-400">
