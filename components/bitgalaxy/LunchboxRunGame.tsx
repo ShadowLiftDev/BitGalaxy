@@ -744,7 +744,7 @@ function spawnObstacleGroup() {
     // Start loop + listeners
     window.addEventListener("keydown", onKeyDown);
     const wrap = wrapRef.current;
-    wrap?.addEventListener("pointerdown", onPointerDown, { passive: false });
+    window.addEventListener("pointerdown", onPointerDown, { passive: false });
 
     // initialize UI
     uiStateRef.current = "ready";
@@ -757,7 +757,7 @@ function spawnObstacleGroup() {
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", resizeCanvas);
-      wrap?.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointerdown", onPointerDown);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfg, orgId, userId, isGuest]);
