@@ -702,8 +702,8 @@ function spawnObstacleGroup() {
 
   return (
     <div className="space-y-3">
-      <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
-        <canvas ref={canvasRef} />
+      <div className="rounded-2xl border border-white/10 bg-black/30 p-3 overflow-hidden">
+        <canvas ref={canvasRef} className="block w-full h-auto" />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
