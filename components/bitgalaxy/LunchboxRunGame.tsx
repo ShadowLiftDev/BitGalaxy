@@ -170,19 +170,27 @@ const player = {
 };
 
     function resizeCanvas() {
-  const parent = canvas.parentElement as HTMLElement | null;
+  const canvasEl = canvasRef.current;
+if (!canvasEl) return;
+
+const ctxMaybe = canvasEl.getContext("2d");
+if (!ctxMaybe) return;
+
+  const parent = canvasEl.parentElement as HTMLElement | null;
+
+const ctx: CanvasRenderingContext2D = ctxMaybe;
   const cssW = parent ? parent.clientWidth : cfg.width;
 
   // Keep your native aspect ratio (960×320 = 3:1)
   const cssH = Math.round(cssW * (cfg.height / cfg.width));
 
   const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-  canvas.width = Math.floor(cssW * dpr);
-  canvas.height = Math.floor(cssH * dpr);
+  canvasEl.width = Math.floor(cssW * dpr);
+  canvasEl.height = Math.floor(cssH * dpr);
 
   // Let CSS control displayed size
-  canvas.style.width = `${cssW}px`;
-  canvas.style.height = `${cssH}px`;
+  canvasEl.style.width = `${cssW}px`;
+ canvasEl.style.height = `${cssH}px`;
 
   // Make 1 unit in code = 1 CSS pixel
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
