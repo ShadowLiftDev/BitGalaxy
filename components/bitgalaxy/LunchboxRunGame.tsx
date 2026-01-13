@@ -77,13 +77,15 @@ export function LunchboxRunGame({ orgId, userId, isGuest }: Props) {
   const [spriteReady, setSpriteReady] = useState(false);
 
   const [score, setScore] = useState(0);
-  const [hi, setHi] = useState<number>(() => {
-    const v =
-      typeof window !== "undefined"
-        ? localStorage.getItem("bg_lunchbox_run_hi")
-        : null;
-    return v ? Number(v) : 0;
-  });
+
+  const [hi, setHi] = useState(0);
+
+useEffect(() => {
+  if (typeof window === "undefined") return;
+  const v = window.localStorage.getItem("bg_lunchbox_run_hi");
+  const n = v ? Number(v) : 0;
+  setHi(Number.isFinite(n) ? n : 0);
+}, []);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitMsg, setSubmitMsg] = useState<string | null>(null);
@@ -147,13 +149,66 @@ export function LunchboxRunGame({ orgId, userId, isGuest }: Props) {
     if (!ctxMaybe) return;
     const ctx: CanvasRenderingContext2D = ctxMaybe;
 
-    // DPR scale (keep CSS size stable)
-    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-    canvas.width = Math.floor(cfg.width * dpr);
-    canvas.height = Math.floor(cfg.height * dpr);
-    canvas.style.width = `${cfg.width}px`;
-    canvas.style.height = `${cfg.height}px`;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const view = { w: cfg.width, h: cfg.height, sx: 1, sy: 1 };
+
+    function isMobileView() {
+  // based on actual rendered canvas width
+  return view.w < 520; // tweak threshold if you want
+}
+
+// base player dimensions (your “desktop design”)
+const BASE_PLAYER = { x: 120, w: 50, h: 50 };
+
+
+const player = {
+  x: BASE_PLAYER.x,
+  y: cfg.groundY,
+  w: BASE_PLAYER.w,
+  h: BASE_PLAYER.h,
+  vy: 0,
+  onGround: true, 
+};
+
+    function resizeCanvas() {
+  const parent = canvas.parentElement as HTMLElement | null;
+  const cssW = parent ? parent.clientWidth : cfg.width;
+
+  // Keep your native aspect ratio (960×320 = 3:1)
+  const cssH = Math.round(cssW * (cfg.height / cfg.width));
+
+  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  canvas.width = Math.floor(cssW * dpr);
+  canvas.height = Math.floor(cssH * dpr);
+
+  // Let CSS control displayed size
+  canvas.style.width = `${cssW}px`;
+  canvas.style.height = `${cssH}px`;
+
+  // Make 1 unit in code = 1 CSS pixel
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // IMPORTANT: update cfg-like values you use for drawing
+  view.w = cssW;
+  view.h = cssH;
+
+  // apply mobile sizing/positioning AFTER view.w is known
+  if (isMobileView()) {
+    player.w = Math.round(BASE_PLAYER.w * 0.82);
+    player.h = Math.round(BASE_PLAYER.h * 0.82);
+    player.x = Math.round(BASE_PLAYER.x * 0.78);
+  } else {
+    player.w = BASE_PLAYER.w;
+    player.h = BASE_PLAYER.h;
+    player.x = BASE_PLAYER.x;
+  }
+
+  // Scale your game coordinates from the base design size to the view size
+  view.sx = cssW / cfg.width;
+  view.sy = cssH / cfg.height;
+}
+
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
 
     // -------- internal game state --------
     let raf = 0;
@@ -172,16 +227,7 @@ export function LunchboxRunGame({ orgId, userId, isGuest }: Props) {
     let jumps = 0;
     let runStartMs = 0;
 
-    const player = {
-      x: 120,
-      y: cfg.groundY,
-      w: 50,
-      h: 50,
-      vy: 0,
-      onGround: true,
-    };
-
-    const groundLineY = cfg.groundY + player.h;
+    const groundLineY = () => cfg.groundY + player.h;
 
     // ---------------- Clouds ----------------
     type Cloud = {
@@ -199,7 +245,7 @@ export function LunchboxRunGame({ orgId, userId, isGuest }: Props) {
     function spawnCloud(seedX?: number) {
       const w = randRange(70, 170);
       const h = randRange(22, 55);
-      const y = randRange(30, Math.max(40, groundLineY - 140)); // stay above ground line
+      const y = randRange(30, Math.max(40, groundLineY() - 140)); // stay above ground line
       const cSpeed = randRange(18, 45);
       const alpha = randRange(0.12, 0.28);
 
@@ -259,7 +305,7 @@ export function LunchboxRunGame({ orgId, userId, isGuest }: Props) {
     // ---------------- Stars ----------------
     const stars = Array.from({ length: 90 }).map(() => ({
       x: Math.random() * cfg.width,
-      y: Math.random() * Math.max(20, groundLineY - 70),
+      y: Math.random() * Math.max(20, groundLineY() - 70),
       r: 0.6 + Math.random() * 1.6,
       a: 0.35 + Math.random() * 0.65,
       tw: 0.5 + Math.random() * 1.6,
@@ -280,26 +326,26 @@ export function LunchboxRunGame({ orgId, userId, isGuest }: Props) {
 
     // ---------------- Background ----------------
     function drawSkyAndGround() {
-      const sky = ctx.createLinearGradient(0, 0, 0, groundLineY);
+      const sky = ctx.createLinearGradient(0, 0, 0, groundLineY());
       sky.addColorStop(0, "rgba(6, 6, 18, 1)");
       sky.addColorStop(1, "rgba(12, 8, 30, 1)");
       ctx.fillStyle = sky;
-      ctx.fillRect(0, 0, cfg.width, groundLineY);
+      ctx.fillRect(0, 0, cfg.width, groundLineY());
 
-      const floor = ctx.createLinearGradient(0, groundLineY, 0, cfg.height);
+      const floor = ctx.createLinearGradient(0, groundLineY(), 0, cfg.height);
       floor.addColorStop(0, "rgba(4, 4, 12, 1)");
       floor.addColorStop(1, "rgba(1, 1, 6, 1)");
       ctx.fillStyle = floor;
-      ctx.fillRect(0, groundLineY, cfg.width, cfg.height - groundLineY);
+      ctx.fillRect(0, groundLineY(), cfg.width, cfg.height - groundLineY());
     }
 
     function drawGroundLine() {
       glowLine(
         ctx,
         0,
-        groundLineY,
+        groundLineY(),
         cfg.width,
-        groundLineY,
+        groundLineY(),
         "rgba(255,80,200,0.55)",
         2,
         18,
@@ -307,11 +353,11 @@ export function LunchboxRunGame({ orgId, userId, isGuest }: Props) {
 
       ctx.save();
       ctx.globalAlpha = 0.14;
-      const haze = ctx.createLinearGradient(0, groundLineY, 0, groundLineY + 40);
+      const haze = ctx.createLinearGradient(0, groundLineY(), 0, groundLineY() + 40);
       haze.addColorStop(0, "rgba(255,80,200,0.9)");
       haze.addColorStop(1, "rgba(255,80,200,0)");
       ctx.fillStyle = haze;
-      ctx.fillRect(0, groundLineY, cfg.width, 46);
+      ctx.fillRect(0, groundLineY(), cfg.width, 46);
       ctx.restore();
     }
 
@@ -365,7 +411,7 @@ function spawnObstacleGroup() {
   for (let i = 0; i < count; i++) {
     obstacles.push({
       x: startX + i * (w + gap),
-      y: groundLineY - h,
+      y: groundLineY() - h,
       w,
       h,
       emoji,
@@ -424,7 +470,7 @@ function spawnObstacleGroup() {
         return;
       }
 
-      const pad = 2;
+      const pad = Math.max(1, Math.round(player.w * 0.04));
       ctx.drawImage(
         img,
         player.x - pad,
@@ -631,19 +677,23 @@ function spawnObstacleGroup() {
     }
 
     function draw() {
-      ctx.clearRect(0, 0, cfg.width, cfg.height);
+      ctx.clearRect(0, 0, view.w, view.h);
 
+      ctx.save();
+      ctx.scale(view.sx, view.sy);
+
+      // everything below stays in your 960×320 coordinate system
       drawSkyAndGround();
       drawStars();
       drawClouds();
       drawGroundLine();
-
       for (const o of obstacles) drawObstacle(o);
       drawLenny();
       drawHud();
-
       if (uiStateRef.current === "ready") drawOverlay("Press SPACE to start");
       else if (uiStateRef.current === "gameover") drawOverlay("Game Over — Press R");
+
+      ctx.restore();
     }
 
     function tick(now: number) {
@@ -695,10 +745,11 @@ function spawnObstacleGroup() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", resizeCanvas);
       canvas.removeEventListener("pointerdown", onPointerDown);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfg, orgId, userId, isGuest, hi]);
+  }, [cfg, orgId, userId, isGuest]);
 
   return (
     <div className="space-y-3">
