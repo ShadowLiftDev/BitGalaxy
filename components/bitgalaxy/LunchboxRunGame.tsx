@@ -92,7 +92,7 @@ useEffect(() => {
 
   const cfg = useMemo(
     () => ({
-      width: 960,
+      width: 500,
       height: 320,
 
       groundY: 238,
