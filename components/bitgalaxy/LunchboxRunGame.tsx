@@ -96,8 +96,8 @@ useEffect(() => {
       height: 320,
 
       groundY: 238,
-      gravity: 3000,
-      jumpVel: 963,
+      gravity: 2800,
+      jumpVel: 1100,
 
       baseSpeed: 350, // slow start
       maxSpeed: 1500,
