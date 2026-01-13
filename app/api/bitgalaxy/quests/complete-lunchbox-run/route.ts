@@ -44,7 +44,7 @@ function clampInt(n: any, fallback = 0) {
  */
 function tierForScore(score: number, thresholds: number[]) {
   const s = Math.max(0, Math.floor(score || 0));
-  const t1 = Math.max(0, Math.floor(thresholds[0] ?? 750));
+  const t1 = Math.max(0, Math.floor(thresholds[0] ?? 500));
   const t2 = Math.max(0, Math.floor(thresholds[1] ?? 2500));
   const t3 = Math.max(0, Math.floor(thresholds[2] ?? 7500));
 
