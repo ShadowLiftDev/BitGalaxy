@@ -33,6 +33,8 @@ function buildGamePlayHref(
       return `/bitgalaxy/games/neon-memory?${params.toString()}`;
     case "galaxy-paddle":
       return `/bitgalaxy/games/galaxy-paddle?${params.toString()}`;
+    case "lunchbox-run":
+      return `/bitgalaxy/games/lunchbox-run?${params.toString()}`;
     case "nebula-break":
       return `/bitgalaxy/games/nebula-break?${params.toString()}`;
     default:

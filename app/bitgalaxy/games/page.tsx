@@ -135,10 +135,12 @@ export default async function BitGalaxyGamesPage(
 
   const neon = rawEvents.neonMemory || {};
   const galaxy = rawEvents.galaxyPaddle || {};
+  const lunchbox = rawEvents.lunchboxRun || {};
   const nebula = rawEvents.nebulaBreak || {};
 
   const neonMemoryCompleted = !!neon.weekKey;
   const galaxyPaddleCompleted = !!galaxy.weekKey;
+  const lunchboxRunCompleted = !!lunchbox.weekKey;
   const nebulaBreakCompleted = !!nebula.weekKey;
 
   const neonMemoryStats = {
@@ -152,6 +154,12 @@ export default async function BitGalaxyGamesPage(
     bestMaxSpeed: galaxy.bestMaxSpeed ?? null,
   };
 
+  const lunchboxRunStats = {
+  bestScore: lunchbox.bestScore ?? null,
+  bestTimeMs: lunchbox.bestTimeMs ?? null,
+  bestJumps: lunchbox.bestJumps ?? null,
+};
+
   const nebulaBreakStats = {
     bestScore: nebula.bestScore ?? null,
     bestBricks: nebula.bestBricks ?? null,
@@ -161,10 +169,12 @@ export default async function BitGalaxyGamesPage(
   // XP values for each quest (fallbacks if a quest doc is missing)
   const neonMemoryQuest = quests.find((q) => q.id === "neon-memory");
   const galaxyPaddleQuest = quests.find((q) => q.id === "galaxy-paddle");
+  const lunchboxRunQuest = quests.find((q) => q.id === "lunchbox-run");
   const nebulaBreakQuest = quests.find((q) => q.id === "nebula-break");
 
   const neonMemoryXP = neonMemoryQuest?.xp ?? 50;
   const galaxyPaddleXP = galaxyPaddleQuest?.xp ?? 50;
+  const lunchboxRunXP = lunchboxRunQuest?.xp ?? 50;
   const nebulaBreakXP = nebulaBreakQuest?.xp ?? 75;
 
   const formatMsToSeconds = (ms?: number | null) => {
@@ -224,7 +234,7 @@ export default async function BitGalaxyGamesPage(
       </div>
 
       {/* Game cards grid */}
-      <section className="grid gap-5 md:grid-cols-3">
+      <section className="grid gap-5 grid-cols-1 md:grid-cols-2">
         {/* Neon Memory */}
         <article className="relative flex flex-col rounded-2xl border border-sky-500/50 bg-slate-950/90 p-4 shadow-[0_0_32px_rgba(56,189,248,0.45)]">
           <div
@@ -402,6 +412,96 @@ export default async function BitGalaxyGamesPage(
                 className="inline-flex items-center justify-center rounded-full bg-indigo-500 px-4 py-2 text-[11px] font-semibold text-slate-950 shadow-[0_0_24px_rgba(129,140,248,0.7)] transition hover:bg-indigo-400"
               >
                 Launch Galaxy Paddle
+              </Link>
+            </div>
+          </div>
+        </article>
+
+        {/* Lunchbox Run */}
+        <article className="relative flex flex-col rounded-2xl border border-fuchsia-500/60 bg-slate-950/90 p-4 shadow-[0_0_32px_rgba(236,72,153,0.45)]">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 opacity-40 mix-blend-screen [background-image:radial-gradient(circle_at_top,_rgba(236,72,153,0.38)_0,_transparent_55%),radial-gradient(circle_at_bottom,_rgba(56,189,248,0.22)_0,_transparent_55%)]"
+          />
+          <div className="relative flex h-full flex-col">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.26em] text-fuchsia-300/85">
+                  Arcade Mission · 04
+                </p>
+                <h2 className="mt-1 text-sm font-semibold text-fuchsia-50">
+                  Lunchbox Run
+                </h2>
+                <p className="mt-1 text-[11px] text-fuchsia-100/85">
+                  Sprint the neon horizon. Jump the food stacks and chase a high score.
+                </p>
+              </div>
+
+              {!isGuest && lunchboxRunCompleted && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/70 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-200">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.9)]" />
+                  Completed
+                </span>
+              )}
+            </div>
+
+            <div className="mt-3 grid gap-2 text-[11px] text-sky-100 sm:grid-cols-2">
+              <div className="rounded-xl border border-emerald-400/60 bg-emerald-500/10 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-emerald-300/90">
+                  XP on completion
+                </p>
+                <p className="mt-1 text-sm font-semibold text-emerald-50">
+                  +{lunchboxRunXP} XP
+                </p>
+                <p className="mt-1 text-[10px] text-emerald-200/80">
+                  Run-based tier reward.
+                  {isGuest && " XP disabled in guest mode."}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-fuchsia-500/60 bg-slate-950/95 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-fuchsia-300/90">
+                  Best run (logged)
+                </p>
+
+                {!isGuest &&
+                (lunchboxRunStats.bestScore ||
+                  lunchboxRunStats.bestTimeMs ||
+                  lunchboxRunStats.bestJumps) ? (
+                  <div className="mt-1 space-y-1">
+                    <p className="font-mono text-[11px] text-fuchsia-50">
+                      Score: {lunchboxRunStats.bestScore ?? "–"}
+                    </p>
+                    <p className="font-mono text-[11px] text-fuchsia-50">
+                      Time: {formatMsToSeconds(lunchboxRunStats.bestTimeMs)}
+                    </p>
+                    <p className="font-mono text-[11px] text-fuchsia-50">
+                      Jumps: {lunchboxRunStats.bestJumps ?? "–"}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-[10px] text-fuchsia-100/80">
+                    {isGuest
+                      ? "Guest runs are not logged. Link an account to post official scores."
+                      : "No run logged yet. Your first completion sets your record."}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end">
+              <Link
+                href={
+                  isGuest
+                    ? withParams("/bitgalaxy/games/lunchbox-run", { orgId, guest: "1" })
+                    : withParams("/bitgalaxy/games/lunchbox-run", {
+                        orgId,
+                        userId: playerUserId,
+                      })
+                }
+                className="inline-flex items-center justify-center rounded-full bg-fuchsia-500 px-4 py-2 text-[11px] font-semibold text-slate-950 shadow-[0_0_24px_rgba(236,72,153,0.7)] transition hover:bg-fuchsia-400"
+              >
+                Launch Lunchbox Run
               </Link>
             </div>
           </div>
