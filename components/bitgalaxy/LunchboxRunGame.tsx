@@ -69,6 +69,7 @@ function glowLine(
 
 export function LunchboxRunGame({ orgId, userId, isGuest }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
 
   const [uiState, setUiState] = useState<GameState>("ready");
   const uiStateRef = useRef<GameState>("ready");
@@ -96,8 +97,8 @@ useEffect(() => {
       height: 320,
 
       groundY: 238,
-      gravity: 2800,
-      jumpVel: 1100,
+      gravity: 2900,
+      jumpVel: 963,
 
       baseSpeed: 350, // slow start
       maxSpeed: 1500,
@@ -733,7 +734,8 @@ function spawnObstacleGroup() {
       }
     }
 
-    function onPointerDown() {
+    function onPointerDown(e: PointerEvent) {
+      e.preventDefault(); // stops scroll/zoom on mobile taps
       if (uiStateRef.current === "ready") startRunIfNeeded();
       else if (uiStateRef.current === "gameover") toReady();
       else jump();
@@ -741,7 +743,8 @@ function spawnObstacleGroup() {
 
     // Start loop + listeners
     window.addEventListener("keydown", onKeyDown);
-    canvas.addEventListener("pointerdown", onPointerDown);
+    const wrap = wrapRef.current;
+    wrap?.addEventListener("pointerdown", onPointerDown, { passive: false });
 
     // initialize UI
     uiStateRef.current = "ready";
@@ -754,16 +757,19 @@ function spawnObstacleGroup() {
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", resizeCanvas);
-      canvas.removeEventListener("pointerdown", onPointerDown);
+      wrap?.removeEventListener("pointerdown", onPointerDown);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfg, orgId, userId, isGuest]);
 
   return (
     <div className="space-y-3">
-      <div className="rounded-2xl border border-white/10 bg-black/30 p-3 overflow-hidden">
-        <canvas ref={canvasRef} className="block w-full h-auto" />
-      </div>
+    <div
+      ref={wrapRef}
+      className="rounded-2xl border border-white/10 bg-black/30 overflow-hidden p-0 sm:p-3 touch-manipulation select-none"
+    >
+      <canvas ref={canvasRef} className="block w-full h-auto" />
+    </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
         <div className="text-white/70">
