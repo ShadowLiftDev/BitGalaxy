@@ -623,7 +623,7 @@ function spawnObstacleGroup() {
       }
 
       // score scales with time + speed
-      internalScore += dt * (3 + speed * 0.05);
+      internalScore += dt * (5 + speed * 0.05);
       setScore(Math.floor(internalScore));
 
       // clouds drift left
